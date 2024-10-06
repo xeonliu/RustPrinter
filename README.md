@@ -175,4 +175,23 @@ SetJob(hPrinter, `job_id`, 0, NULL, JOB_CONTROL_DELETE);
 `Reqwest`库有`CookieStorage`，稍加修改。
 参考`Canvas Helper`。
 
+> Unix-like Systems
 
+Use CUPS.
+
+![CUPS Architecture](https://www.cups.org/images/cups-postscript-chain.png)
+
++ [Raster Driver (PCL)](https://www.cups.org/doc/raster-driver.html)
++ [PostScript Driver](https://www.cups.org/doc/postscript-driver.html)
+    + Can be combined with [gs](https://www.ghostscript.com/) to generate pdf file.
+    + Custom backend like [cups-backend](https://www.cups.org/doc/man-backend.html)
+
+Generate PPD Files for CUPS.
+```
+// Include standard font and media definitions
+#include <font.defs>
+#include <media.defs>
+
+// Specify this is a PostScript printer driver
+DriverType ps
+```
