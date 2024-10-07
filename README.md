@@ -118,25 +118,34 @@ C:\upmclient
 使用Ghidra进行逆向。
 
 ## 驱动部分
-+ 驱动会储存当前打印任务的PJL文件于`temp`目录，命名为`[JobId].tmp`
++ 驱动是Unidrv，由GPF文件定义GDI指令到PCL指令的转换。内嵌在Setup.exe中
+
+## 端口监视器部分
++ 端口监视器会储存驱动发送到该端口的PJL文件于`temp`目录，命名为`[JobId].tmp`
 + 驱动会使用命令行启动`UMPClient.exe`，参数为`/JOB:[JobId] /PRINTER:联创打印管理系统`
 
 ## `UPMClient.exe`部分
 + 使用传入的Job参数和打印机名称使用GetPrinter等Win32API检查打印任务队列
 + 向后端发送添加任务的请求，获得新任务的id。
 + 调用`Compress.dll`中的`CompressFile(input, output, "wb")`获得`[JobId].tmp2`
++ 似乎还生成预览文件`.pvg`并上传
++ 若点击预览，生成`.raw`图片文件
 + 向后端上传压缩后的文件
 + 向后端发送结束请求
-+ 清除临时文件，清除打印任务队列
++ 清除临时文件，删除打印任务
 
 # Dev Notes
 > 向打印机传输的文件是什么？`.tmp`是什么文件？
+
+Spooler队列中是EMF文件
 
 >The print spooler supports the following data types:
 >
 > Enhanced metafile (EMF).
 ASCII text.
 Raw data, which includes printer data types such as PostScript, PCL, and custom data types.
+
+交给语言处理器（驱动）后生成PJL文件。
 
 PJL文件，惠普有参考资料。内部数据部分是PCL。
 + [HP PCL](https://developers.hp.com/hp-printer-command-languages-pcl)
@@ -195,3 +204,13 @@ Generate PPD Files for CUPS.
 // Specify this is a PostScript printer driver
 DriverType ps
 ```
+
+> Windows怎么添加打印机
+
++ 选择端口
+驱动处理完的数据最终如何发送给打印机。
+有常见的如Socket/USB。
+通过安装端口监控程序（使用INF）可以添加新的端口。
+
++ 选择驱动
+决定了发往端口的数据。
