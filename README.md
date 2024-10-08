@@ -134,9 +134,12 @@ C:\upmclient
 + 向后端上传预览文件？（实现未知）
 + 向后端发送结束请求
 + 清除临时文件，删除打印任务
++ 清除临时文件，删除打印任务
 
 # Dev Notes
 > 向打印机传输的文件是什么？`.tmp`是什么文件？
+
+Spooler队列中是EMF文件
 
 Spooler队列中是EMF文件
 
@@ -145,6 +148,8 @@ Spooler队列中是EMF文件
 > Enhanced metafile (EMF).
 ASCII text.
 Raw data, which includes printer data types such as PostScript, PCL, and custom data types.
+
+交给语言处理器（驱动）后生成PJL文件。
 
 交给语言处理器（驱动）后生成PJL文件。
 
@@ -211,6 +216,16 @@ Generate PPD Files for CUPS.
 // Specify this is a PostScript printer driver
 DriverType ps
 ```
+
+> Windows怎么添加打印机
+
++ 选择端口
+驱动处理完的数据最终如何发送给打印机。
+有常见的如Socket/USB。
+通过安装端口监控程序（使用INF）可以添加新的端口。
+
++ 选择驱动
+决定了发往端口的数据。
 
 > Windows怎么添加打印机
 
