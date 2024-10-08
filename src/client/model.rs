@@ -20,6 +20,13 @@ pub struct GetAuthTokenResponse {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CheckAuthResponse {
+    pub code: i64,
+    message: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WaitUserResult {
     dw_acc_no: i64,
     sz_logon_name: String,
@@ -40,5 +47,5 @@ pub struct WaitUserInResponse {
     session_id: String,
     code: i64,
     message: String,
-    pub result: Option<WaitUserResult>
+    pub result: Option<WaitUserResult>,
 }

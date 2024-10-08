@@ -2,10 +2,9 @@ mod basic;
 pub mod consts;
 mod model;
 
-use std::rc::Rc;
-use std::sync::{Arc, RwLock};
 use reqwest::cookie::Jar;
 use reqwest::Url;
+use std::sync::Arc;
 
 pub struct Client {
     cli: reqwest::Client,
