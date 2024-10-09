@@ -209,6 +209,13 @@ Use CUPS.
     + Custom backend like [cups-backend](https://www.cups.org/doc/man-backend.html)
 
 Generate PPD Files for CUPS.
+
+Backend Example: https://www.cups-pdf.de/download.shtml
+
+https://www.cups.org/doc/man-backend.html
+
+PPD Example: Can be downloaded from OpenPrinting. Using Generic PCL5?
+
 ```
 // Include standard font and media definitions
 #include <font.defs>
@@ -244,4 +251,4 @@ DriverType ps
 + Entry
   + 4 Byte Size (Last Entry: 12 Bytes)
   + Base-64 Encoded PNG File (Res: 585x838) (Last Entry: Magic Bytes)
- 
+
