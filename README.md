@@ -205,7 +205,7 @@ Use CUPS.
 
 + [Raster Driver (PCL)](https://www.cups.org/doc/raster-driver.html)
 + [PostScript Driver](https://www.cups.org/doc/postscript-driver.html)
-    + Can be combined with [gs](https://www.ghostscript.com/) to generate pdf file.
+    + Can be combine with custom filters like `foomatic-rip` or `[gs](https://www.ghostscript.com/)`
     + Custom backend like [cups-backend](https://www.cups.org/doc/man-backend.html)
 
 Generate PPD Files for CUPS.
