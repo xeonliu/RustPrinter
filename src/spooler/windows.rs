@@ -2,7 +2,8 @@ use crate::spooler::{Color, Direction, Job, Side, Size, Spooler};
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation;
-use windows::Win32::Graphics::Printing::{GetJobW, OpenPrinterW, JOB_INFO_1W};
+use windows::Win32::Graphics::Gdi;
+use windows::Win32::Graphics::Printing::{GetJobW, OpenPrinterW, JOB_INFO_2W};
 
 #[derive(Debug)]
 pub struct WindowsSpooler {
@@ -33,7 +34,7 @@ impl Spooler for WindowsSpooler {
 
         unsafe {
             // Level 1 JOB INFO
-            if (GetJobW(self.printer_handle, id, 1, None, &mut pcb_needed).into()) {
+            if (GetJobW(self.printer_handle, id, 2, None, &mut pcb_needed).into()) {
                 return None;
             }
         }
@@ -45,7 +46,7 @@ impl Spooler for WindowsSpooler {
             if GetJobW(
                 self.printer_handle,
                 id,
-                1,
+                2,
                 Some(&mut buffer),
                 &mut pcb_needed,
             ) == Foundation::FALSE
@@ -53,13 +54,18 @@ impl Spooler for WindowsSpooler {
                 return None;
             }
         }
-        let job_info: JOB_INFO_1W = unsafe { *(buffer.as_ptr() as *const JOB_INFO_1W) };
+        let job_info: JOB_INFO_2W = unsafe { *(buffer.as_ptr() as *const JOB_INFO_2W) };
 
         println!("{:?}", job_info);
         unsafe {
             println!("{:?}", job_info.pDatatype.to_string().unwrap());
         }
         println!("{:?}", job_info);
+
+        let dev_mode = unsafe {*(job_info.pDevMode)};
+
+        unsafe { println!("Size: {:?}", dev_mode.Anonymous1.Anonymous1.dmPaperSize); }
+        println!("Color: {:?}", dev_mode.dmColor);
 
         return Some(Job {
             id: job_info.JobId,

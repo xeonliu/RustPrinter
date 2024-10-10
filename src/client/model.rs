@@ -1,4 +1,14 @@
+use std::default;
+
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
+// A General Status Code Response
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatusCodeResponse {
+    pub code: i64,
+    message: String,
+}
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,13 +26,6 @@ pub struct GetAuthTokenResponse {
     pub message: String,
     #[serde(default)]
     pub result: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CheckAuthResponse {
-    pub code: i64,
-    message: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -48,4 +51,37 @@ pub struct WaitUserInResponse {
     code: i64,
     message: String,
     pub result: Option<WaitUserResult>,
+}
+
+/** POST /api/client/PrintJob/Create */
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateJobRequest {
+    #[serde(default)]
+    pub dw_property: i64, // 0
+    pub sz_job_name: String,
+    pub dw_copies: i64,
+    pub sz_attribe: String,      // "single,collate,NUP1,",
+    pub sz_paper_detail: String, // "[{\"dwPaperID\":9,\"dwBWPages\":1,\"dwColorPages\":0,\"dwPaperNum\":1}]",
+    pub sz_color_map: String,    // "0"
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateJobResponse {
+    pub code: i64,
+    message: String,
+    pub result: CreateJobResult,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateJobResult {
+    sz_logon_name: String, // JAccount Name
+    sz_true_name: String,  // Your Name
+
+    pub dw_job_id: usize,
+    dw_create_date: i64, // TODO
+    dw_create_time: i64,
+    sz_file_name: String,
 }

@@ -21,8 +21,8 @@
 ## Web API
 
 ## UPMClient API
-+ `GET /api/client/PrintJob/Create`
-    ```
++ `POST /api/client/PrintJob/Create`
+    ```json
     {
     "dwProperty": 0,
     "szJobName": "屏幕截图 2024-10-02 233633",
@@ -32,10 +32,41 @@
     "szColorMap": "0"
     }
     ```
+    ```json
+    {
+        "code": 0,
+        "message": "",
+        "result": {
+            "szLogonName": "",
+            "dwStatus": 17,
+            "dwJobId": 167523,
+            "dwOldJobId": 579850,
+            "dwProperty": 33554432,
+            "dwCreateDate": 20241005,
+            "dwCreateTime": 213611,
+            "dwPrintDate": 0,
+            "dwPrintTime": 0,
+            "dwCopies": 1,
+            "dwDevSN": 0,
+            "dwFee": 0,
+            "dwType": 1,
+            "dwSpecPrinter": 0,
+            "dwFSID": 0,
+            "szAttribe": "single,collate,NUP1,",
+            "szPaperDetail": "[{\"dwPaperID\":9,\"dwBWPages\":1,\"dwColorPages\":0,\"dwPaperNum\":1}]",
+            "szColorMap": "0",
+            "szCardNO": "",
+            "szTrueName": "",
+            "szJobName": " 2024-10-02 233633",
+            "szFileName": "20241005/f4a5169164ba403a87fcbb572f7aa6ee",
+            "szMemo": null
+        }
+    }
+    ```
 + `POST /api/client/PrintJob/Upload?dwJobId={} HTTP/1.1 `
-```
-multipart/form-data; boundary=---------------------------Boundaryd1vksiw0aMcjdDd46cs3c
-```
+    ```
+    multipart/form-data; boundary=---------------------------Boundaryd1vksiw0aMcjdDd46cs3c
+    ```
 + `POST /api/client/PrintJob/UploadPreview?dwJobId={} HTTP/1.1`
 + `POST /api/client/PrintJob/Set HTTP/1.1`
     ```

@@ -1,7 +1,11 @@
+use super::model::CreateJobRequest;
 use super::{consts::BASE_URL, Client};
-use crate::client::model::{CheckAuthResponse, GetAuthTokenResponse, WaitUserInResponse};
+use crate::client::model::{
+    CreateJobResponse, GetAuthTokenResponse, StatusCodeResponse, WaitUserInResponse,
+};
 use reqwest::cookie::CookieStore;
-use reqwest::{cookie, Url};
+use reqwest::{cookie, multipart, Url};
+use serde::de::IntoDeserializer;
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -65,7 +69,7 @@ impl Client {
             .get(format!("{}/api/client/Auth/Check", self.base_url))
             .send()
             .await?;
-        let res: CheckAuthResponse = res.json().await?;
+        let res: StatusCodeResponse = res.json().await?;
         Ok(res.code == 0)
     }
 
@@ -139,6 +143,55 @@ impl Client {
         }
 
         Ok(())
+    }
+
+    pub async fn create_job(&self) -> Result<usize, Box<dyn Error>> {
+        // Create Job Data.
+
+        let req_json = CreateJobRequest {
+            dw_property: 0,
+            sz_job_name: "test".into(),
+            dw_copies: 1,
+            sz_attribe: "".into(),
+            sz_paper_detail:
+                "[{\"dwPaperID\":9,\"dwBWPages\":1,\"dwColorPages\":0,\"dwPaperNum\":1}]".into(),
+            sz_color_map: "0".into(),
+        };
+
+        let res = self
+            .cli
+            .post(format!("{}/api/client/PrintJob/Create", BASE_URL))
+            .json(&req_json)
+            .send()
+            .await?;
+
+        let res: CreateJobResponse = res.json().await?;
+        println!("{:?}", res);
+
+        Ok(res.result.dw_job_id)
+    }
+
+    pub async fn upload_job(&self, dw_jobid: usize, filepath: &str) -> Result<(), Box<dyn Error>> {
+        let form = multipart::Form::new().file("szFile", filepath).await?;
+
+        let res = self
+            .cli
+            .post(format!(
+                "{}/api/client/PrintJob/Upload?dwJobId={}",
+                BASE_URL, dw_jobid
+            ))
+            .multipart(form)
+            .header("User-Agent", "UPMClient 1.0")
+            .header("Pragma", "no-cache")
+            .send()
+            .await?;
+
+        let res = res.json::<StatusCodeResponse>().await?;
+        println!("{:?}", res);
+        match res.code {
+            0 => Ok(()),
+            _ => Err("Upload job failed".into()),
+        }
     }
 }
 
