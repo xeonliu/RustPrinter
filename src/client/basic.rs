@@ -1,11 +1,10 @@
-use super::model::CreateJobRequest;
+use super::model::{CreateJobRequest, SetJobRequest};
 use super::{consts::BASE_URL, Client};
 use crate::client::model::{
     CreateJobResponse, GetAuthTokenResponse, StatusCodeResponse, WaitUserInResponse,
 };
 use reqwest::cookie::CookieStore;
 use reqwest::{cookie, multipart, Url};
-use serde::de::IntoDeserializer;
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -171,8 +170,13 @@ impl Client {
         Ok(res.result.dw_job_id)
     }
 
+    /// Upload Compressed PCL File to Server.
+    ///
+    /// `filepath` indicates the path of gzipped PCL File
+    ///
     pub async fn upload_job(&self, dw_jobid: usize, filepath: &str) -> Result<(), Box<dyn Error>> {
-        let form = multipart::Form::new().file("szFile", filepath).await?;
+        let part = multipart::Part::file(filepath).await?.file_name("raw.dat");
+        let form = multipart::Form::new().part("szFile", part);
 
         let res = self
             .cli
@@ -182,7 +186,6 @@ impl Client {
             ))
             .multipart(form)
             .header("User-Agent", "UPMClient 1.0")
-            .header("Pragma", "no-cache")
             .send()
             .await?;
 
@@ -193,15 +196,74 @@ impl Client {
             _ => Err("Upload job failed".into()),
         }
     }
+
+    /// Upload PVG Preview File to Server.
+    ///
+    /// The PVG File consists of PNG Files for each Page.
+    #[allow(unused)]
+    pub async fn upload_preview(
+        &self,
+        dw_jobid: usize,
+        filepath: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let part = multipart::Part::file(filepath)
+            .await?
+            .file_name("preview.pvg");
+        let form = multipart::Form::new().part("szFile", part);
+
+        let res = self
+            .cli
+            .post(format!(
+                "{}/api/client/PrintJob/UploadPreview?dwJobId={}",
+                BASE_URL, dw_jobid
+            ))
+            .multipart(form)
+            .header("User-Agent", "UPMClient 1.0")
+            .send()
+            .await?;
+
+        let res = res.json::<StatusCodeResponse>().await?;
+        println!("{:?}", res);
+        match res.code {
+            0 => Ok(()),
+            _ => Err("Upload Preview failed".into()),
+        }
+    }
+
+    pub async fn set_job(&self, dw_job_id: usize) -> Result<(), Box<dyn Error>> {
+        if let Some(osession_id) = self.jar.cookies(&self.base_url) {
+            let session_str: String = osession_id.to_str()?.to_owned();
+            // OSESSIONID=
+            let osession_id = String::from(&session_str[11..]);
+
+            let req_json = SetJobRequest {
+                dw_job_id,
+                dw_status: 1,
+                osession_id,
+            };
+
+            let res = self
+                .cli
+                .post(format!("{}/api/client/PrintJob/Set", BASE_URL))
+                .json(&req_json)
+                .send()
+                .await?;
+
+            let res: StatusCodeResponse = res.json().await?;
+            println!("{:?}", res);
+            return Ok(());
+        }
+        Err("Set Job Failed".into())
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn test_client() {
     let client = Client::new();
     client.load_cookie("./test.txt");
-    if !client.check_login().await.unwrap() {
-        println!("Not Logged in");
-        client.login().await.unwrap();
-    }
+    // if !client.check_login().await.unwrap() {
+    //     println!("Not Logged in");
+    //     client.login().await.unwrap();
+    // }
     client.store_cookie("./test.txt");
 }

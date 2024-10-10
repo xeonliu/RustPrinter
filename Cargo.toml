@@ -16,3 +16,4 @@ features = ["full"]
 [dependencies]
 serde = { version = "1.0.210", features = ["derive"] }
 log = "0.4.22"
+regex = "1.11.0"

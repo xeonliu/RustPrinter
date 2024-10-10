@@ -109,11 +109,6 @@
     + 包括Token和充值金额
 + 返回一个带微信支付脚本的网页
 
-# Win32 API
-## 打印队列相关
-
-[打印后台处理程序 API 函数](https://learn.microsoft.com/zh-cn/windows/win32/printdocs/printing-and-print-spooler-functions)
-
 # “联创打印管理系统”虚拟打印机执行流程
 
 ## 安装目录结构
@@ -134,22 +129,22 @@ C:\upmclient
 ├─X32
 ├─X64
 │  cconnector.dll # 用于JsonRPC，UPMClient调用
-│  Compress.dll # 用于压缩PJL文件生成`.tmp2`后缀文件，UPMClient调用
-│  GdiPlus.dll # Gdi+ 是 Windows 的图形API
-│  opmgoupm.exe # 似乎是一个浏览器
+│  Compress.dll # 用于`gzip`压缩。用于压缩PJL文件生成`.tmp2`后缀文件，UPMClient调用
+│  GdiPlus.dll # Gdi+ 是 Windows 的图形API。
+│  opmgoupm.exe # 似乎是一个浏览器。打开会进入eprint主页。
 │  Setup.exe # 安装UPMClient驱动（使用`UPMPortMonitor.reg`更新注册表）
 │  UnInstall.cmd # 带参数执行`Setup.exe`
 │  update.exe
-│  UPMClient.exe # 主程序。不加参数启动可以进入eprint主页，被驱动使用加命令行参数调用会进入打印界面。
+│  UPMClient.exe # 主程序。不加参数启动可以进入eprint主页，被端口监视器使用命令行参数调用会进入打印界面。
 │  UPMClient.ini # 配置文件，作为注册表的备选。
-│  UPMPortMonitor.reg
-└─ zlib1.dll
+│  UPMPortMonitor.reg # 配置端口监视器的注册表脚本
+└─ zlib1.dll # 用于`zlib`压缩
 ```
 
 使用Ghidra进行逆向。
 
 ## 驱动部分
-+ 驱动是Unidrv，由GPF文件定义GDI指令到PCL指令的转换。内嵌在Setup.exe中
++ 驱动是Unidrv，由GPF文件定义GDI指令到PCL指令的转换。内嵌在Setup.exe中，安装时添加到系统驱动目录。
 
 ## 端口监视器部分
 + 端口监视器会储存驱动发送到该端口的PJL文件于`temp`目录，命名为`[JobId].tmp`
@@ -214,9 +209,9 @@ SetJob(hPrinter, `job_id`, 0, NULL, JOB_CONTROL_DELETE);
 
 调用了`Compress.dll`，内部实现尚未逆向。
 
-> 如何使用Rust加载dll？
+~~> 如何使用Rust加载dll？~~
 
-好像也有`crate`
+~~好像也有`crate`~~
 
 
 > 有些东西写在源代码中，但Fiddler没抓到？
@@ -283,3 +278,8 @@ DriverType ps
   + 4 Byte Size (Last Entry: 12 Bytes)
   + Base-64 Encoded PNG File (Res: 585x838) (Last Entry: Magic Bytes)
 
+# CUPS
++ `/etc/cups/ppd`: Stores PPD File?
++ `/usr/lib/cups`: Stores Backend
++ `/usr/share/cups`: ??
++ `/usr/share/ppd/cupsfilters/`

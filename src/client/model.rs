@@ -85,3 +85,12 @@ pub struct CreateJobResult {
     dw_create_time: i64,
     sz_file_name: String,
 }
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetJobRequest {
+    pub dw_job_id: usize,
+    pub dw_status: usize,
+    #[serde(rename = "OSESSIONID")]
+    pub osession_id: String,
+}

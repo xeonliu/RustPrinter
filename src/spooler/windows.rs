@@ -33,8 +33,8 @@ impl Spooler for WindowsSpooler {
         let mut pcb_needed: u32 = 0;
 
         unsafe {
-            // Level 1 JOB INFO
-            if (GetJobW(self.printer_handle, id, 2, None, &mut pcb_needed).into()) {
+            // Level 2 JOB INFO
+            if GetJobW(self.printer_handle, id, 2, None, &mut pcb_needed).into() {
                 return None;
             }
         }
@@ -62,9 +62,11 @@ impl Spooler for WindowsSpooler {
         }
         println!("{:?}", job_info);
 
-        let dev_mode = unsafe {*(job_info.pDevMode)};
+        let dev_mode = unsafe { *(job_info.pDevMode) };
 
-        unsafe { println!("Size: {:?}", dev_mode.Anonymous1.Anonymous1.dmPaperSize); }
+        unsafe {
+            println!("Size: {:?}", dev_mode.Anonymous1.Anonymous1.dmPaperSize);
+        }
         println!("Color: {:?}", dev_mode.dmColor);
 
         return Some(Job {
