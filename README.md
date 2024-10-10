@@ -7,9 +7,9 @@
 + 此时Cookie生效，使用`Auth/Check`可以判断
 + 持久化Cookie
 + 后续可以随意调用API。
-+ 从打印任务中获取必要信息（？）
-+ 发送HTTP请求，创建Job
-+ 使用`Compress.dll`压缩PJL文件
++ [x] 从打印任务中获取必要信息
++ [x] 发送HTTP请求，创建Job
++ ~~使用`Compress.dll`压缩PJL文件~~Use `gzip`.
 + 发送HTTP请求，上传文件
 + 发送结束请求
 + 清除打印队列内容和临时文件。
@@ -157,10 +157,11 @@ C:\upmclient
 
 ## `UPMClient.exe`部分
 + 使用传入的Job参数和打印机名称使用GetPrinter等Win32API检查打印任务队列
++ 生成预览文件`.pvg`（实现未知, Should be Using GDI+ to render EMF spooler file）
+    + `.pvg` is a self-defined format containing base64 encoded png.
 + 向后端发送添加任务的请求，获得新任务的id。
 + 调用`Compress.dll`中的`CompressFile(input, output, "wb")`获得`[JobId].tmp2`（实为`gzip`压缩）
-+ 似乎还生成预览文件`.pvg`并上传（实现未知）
-+ 若点击预览，生成`.raw`图片文件（实现未知）
++ 若点击预览，生成`.raw` PNG 图片文件
 + 向后端上传压缩后的文件
 + 向后端上传预览文件？（实现未知）
 + 向后端发送结束请求
@@ -235,10 +236,17 @@ Use CUPS.
 
 + [Raster Driver (PCL)](https://www.cups.org/doc/raster-driver.html)
 + [PostScript Driver](https://www.cups.org/doc/postscript-driver.html)
-    + Can be combined with [gs](https://www.ghostscript.com/) to generate pdf file.
+    + Can be combine with custom filters like `foomatic-rip` or `[gs](https://www.ghostscript.com/)`
     + Custom backend like [cups-backend](https://www.cups.org/doc/man-backend.html)
 
 Generate PPD Files for CUPS.
+
+Backend Example: https://www.cups-pdf.de/download.shtml
+
+https://www.cups.org/doc/man-backend.html
+
+PPD Example: Can be downloaded from OpenPrinting. Using Generic PCL5?
+
 ```
 // Include standard font and media definitions
 #include <font.defs>
@@ -267,3 +275,11 @@ DriverType ps
 
 + 选择驱动
 决定了发往端口的数据。
+
+> PVG File Format?
+
++ 12 Byte Header ("PVG")
++ Entry
+  + 4 Byte Size (Last Entry: 12 Bytes)
+  + Base-64 Encoded PNG File (Res: 585x838) (Last Entry: Magic Bytes)
+
