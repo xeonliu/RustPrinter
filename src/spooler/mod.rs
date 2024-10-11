@@ -1,44 +1,40 @@
 pub mod windows;
 
-#[derive(Debug)]
-enum Color {
+#[derive(Debug, Clone, PartialEq)]
+pub enum Color {
     BW,
     COLOR,
 }
 
-#[derive(Debug)]
-enum Direction {
-    VERTICAL,
-    HORIZONTAL,
+#[derive(Debug, Clone, PartialEq)]
+pub enum Direction {
+    PORTRAIT,
+    LANDSCAPE,
 }
 
-#[derive(Debug)]
-enum Edge {
-    LONG,
-    SHORT,
+#[derive(Debug, Clone, PartialEq)]
+pub enum Duplex {
+    SIMPLEX,    // 普通打印
+    HORIZONTAL, // 短边翻转
+    VERTICAL,   // 长边翻转
 }
 
-#[derive(Debug)]
-enum Side {
-    SINGLE,
-    BOTH(Edge),
-}
-
-#[derive(Debug)]
-enum Size {
+#[derive(Debug, Clone, PartialEq)]
+pub enum Size {
     A3,
     A4,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Job {
-    id: u32,              // Job ID
-    name: String,         // Job Name (File Name)
-    color: Color,         // B&W / Color
-    number: u32,          // How many prints
-    paper_size: Size,     // A3/A4
-    direction: Direction, // V/H
-    side: Side,           // Single / Both
+    pub id: u32,      // Job ID
+    pub name: String, // Job Name (File Name)
+    pub color: Color, // B&W / Color
+    pub number: u32,  // How many pages
+    pub copies: u32,
+    pub paper_size: Size,     // A3/A4
+    pub direction: Direction, // P/L
+    pub duplex: Duplex,
 }
 
 pub trait Spooler {

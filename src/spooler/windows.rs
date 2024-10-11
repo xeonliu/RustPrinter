@@ -1,14 +1,71 @@
-use crate::spooler::{Color, Direction, Job, Side, Size, Spooler};
+use crate::spooler::{Color, Direction, Duplex, Job, Size, Spooler};
 
+use serde::de::IntoDeserializer;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation;
-use windows::Win32::Graphics::Gdi;
+use windows::Win32::Graphics::Gdi::{self, DMDUP_HORIZONTAL, DMDUP_SIMPLEX, DMDUP_VERTICAL};
 use windows::Win32::Graphics::Printing::{GetJobW, OpenPrinterW, JOB_INFO_2W};
 
 #[derive(Debug)]
 pub struct WindowsSpooler {
     printer_name: String,
     printer_handle: Foundation::HANDLE,
+}
+
+impl Direction {}
+
+impl TryFrom<i16> for Size {
+    type Error = &'static str;
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        match value {
+            8 => Ok(Self::A3),
+            9 => Ok(Self::A4),
+            _ => Err("Size Error"),
+        }
+    }
+}
+
+impl Into<i16> for Size {
+    fn into(self) -> i16 {
+        match self {
+            Self::A3 => 8,
+            Self::A4 => 9,
+        }
+    }
+}
+
+impl TryFrom<i16> for Color {
+    type Error = &'static str;
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Self::BW),
+            2 => Ok(Self::COLOR),
+            _ => Err("Size Error"),
+        }
+    }
+}
+
+impl TryFrom<i16> for Direction {
+    type Error = &'static str;
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Self::PORTRAIT),
+            2 => Ok(Self::LANDSCAPE),
+            _ => Err("Size Error"),
+        }
+    }
+}
+
+impl TryFrom<i16> for Duplex {
+    type Error = &'static str;
+    fn try_from(value: i16) -> Result<Self, Self::Error> {
+        match Gdi::DEVMODE_DUPLEX(value) {
+            DMDUP_SIMPLEX => Ok(Self::SIMPLEX),
+            DMDUP_HORIZONTAL => Ok(Self::HORIZONTAL),
+            DMDUP_VERTICAL => Ok(Self::VERTICAL),
+            _ => Err("Duplex Error"),
+        }
+    }
 }
 
 impl WindowsSpooler {
@@ -56,27 +113,65 @@ impl Spooler for WindowsSpooler {
         }
         let job_info: JOB_INFO_2W = unsafe { *(buffer.as_ptr() as *const JOB_INFO_2W) };
 
-        println!("{:?}", job_info);
-        unsafe {
-            println!("{:?}", job_info.pDatatype.to_string().unwrap());
-        }
-        println!("{:?}", job_info);
+        // unsafe {
+        //     // NT EMF 1.008
+        //     println!("{:?}", job_info.pDatatype.to_string().unwrap());
+        // }
+
+        // println!("{:?}", job_info);
+        let number = job_info.TotalPages;
+        println!("Total Pages: {:?}", number);
+
+        let pages_printed = job_info.PagesPrinted;
+        println!("Pages Printed: {:?}", pages_printed);
 
         let dev_mode = unsafe { *(job_info.pDevMode) };
 
-        unsafe {
-            println!("Size: {:?}", dev_mode.Anonymous1.Anonymous1.dmPaperSize);
-        }
-        println!("Color: {:?}", dev_mode.dmColor);
+        // TODO: Check BitMap
+
+        let paper_size: Size = unsafe {
+            dev_mode
+                .Anonymous1
+                .Anonymous1
+                .dmPaperSize
+                .try_into()
+                .expect("Paper Size Not Supported")
+        };
+
+        let direction: Direction = unsafe {
+            dev_mode
+                .Anonymous1
+                .Anonymous1
+                .dmOrientation
+                .try_into()
+                .expect("Orientation not supported")
+        };
+
+        let duplex: Duplex = dev_mode.dmDuplex.0.try_into().unwrap();
+
+        let color: Color = dev_mode
+            .dmColor
+            .0
+            .try_into()
+            .expect("Color Mode Not Supported");
+
+        println!("Size: {:?}", paper_size);
+        println!("Color: {:?}", color);
+
+        let copies: u32 = unsafe { dev_mode.Anonymous1.Anonymous1.dmCopies }
+            .try_into()
+            .expect("Error on copies");
+        println!("Copies: {:?}", copies);
 
         return Some(Job {
             id: job_info.JobId,
             name: unsafe { job_info.pDocument.to_string().unwrap() },
-            color: Color::BW,
-            number: job_info.TotalPages,
-            paper_size: Size::A4,
-            direction: Direction::VERTICAL,
-            side: Side::SINGLE,
+            color,
+            number,
+            paper_size,
+            direction,
+            duplex,
+            copies,
         });
     }
 
@@ -89,6 +184,6 @@ impl Spooler for WindowsSpooler {
 fn test() {
     let sp = WindowsSpooler::new("联创打印管理系统").unwrap();
     println!("{:?}", sp);
-    let jb = sp.get_job(3);
+    let jb = sp.get_job(4);
     println!("{:?}", jb);
 }

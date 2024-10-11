@@ -84,7 +84,7 @@ async fn main() {
     }
 
     println!("Logged in");
-    let id = client.create_job().await.unwrap();
+    let id = client.create_job(&job).await.unwrap();
     println!("jobid: {}", id);
 
     // Load from Tmp File.

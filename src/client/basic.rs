@@ -3,9 +3,11 @@ use super::{consts::BASE_URL, Client};
 use crate::client::model::{
     CreateJobResponse, GetAuthTokenResponse, StatusCodeResponse, WaitUserInResponse,
 };
+use crate::spooler::{Color, Duplex, Job};
 use reqwest::cookie::CookieStore;
 use reqwest::{cookie, multipart, Url};
 use std::error::Error;
+use std::fmt::format;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::sync::Arc;
@@ -144,17 +146,72 @@ impl Client {
         Ok(())
     }
 
-    pub async fn create_job(&self) -> Result<usize, Box<dyn Error>> {
+    /* Put it here or in Job Struct? */
+    pub fn job_to_sz_attribute(job: &Job) -> String {
+        let mut attributes: Vec<String> = Vec::new();
+
+        match job.color {
+            Color::BW => {
+                attributes.push("single".into());
+            }
+            Color::COLOR => {
+                attributes.push("color".into());
+            }
+        }
+
+        match job.duplex {
+            Duplex::SIMPLEX => {
+                todo!()
+            }
+            Duplex::HORIZONTAL => {
+                attributes.push("hdup".into());
+            }
+            Duplex::VERTICAL => {
+                attributes.push("vdup".into());
+            }
+        }
+
+        attributes.push("collate".into());
+        attributes.push("NUP1".into());
+        attributes.push("".into());
+
+        attributes.join(",")
+    }
+
+    pub fn job_to_paper_detail(job: &Job) -> String {
+        let paper_id: i16 = job.paper_size.clone().into();
+        // TODO: Identify BW_Pages?
+        let bw_pages = job.number;
+        let color_pages = 0;
+        // TODO
+        let paper_num = 0;
+
+        return format!(
+            "[{{\"dwPaperID\":{},\"dwBWPages\":{},\"dwColorPages\":{},\"dwPaperNum\":{}}}]",
+            paper_id, bw_pages, color_pages, paper_num,
+        )
+        .into();
+    }
+
+    pub async fn create_job(&self, job: &Job) -> Result<usize, Box<dyn Error>> {
         // Create Job Data.
+
+        // Construct sz_attribute
+        let sz_attribe = Self::job_to_sz_attribute(job);
+
+        // Construct sz_paper_detail
+        let sz_paper_detail = Self::job_to_paper_detail(job);
 
         let req_json = CreateJobRequest {
             dw_property: 0,
-            sz_job_name: "test".into(),
-            dw_copies: 1,
-            sz_attribe: "".into(),
-            sz_paper_detail:
-                "[{\"dwPaperID\":9,\"dwBWPages\":1,\"dwColorPages\":0,\"dwPaperNum\":1}]".into(),
-            sz_color_map: "0".into(),
+            sz_job_name: job.name.clone(),
+            dw_copies: job.copies.into(),
+            sz_attribe,
+            sz_paper_detail,
+            sz_color_map: match job.color {
+                Color::BW => "0".into(),
+                Color::COLOR => "11101".into(),
+            },
         };
 
         let res = self

@@ -1,20 +1,34 @@
+# **R**upmPrinter
+**R**upmPrinter is designed to be a _multi-platform_ __printer driver__ & __frontend application__ for SJTU Library Printing System.
+
+It is a reversed version of the official `UPMClient` Windows driver from `Unifound`.
+
+**R** as in `Rust`/`Reverse`/`Rewrite`.
+
+On `Windows` it works as an **extension** of the original driver & port monitor (for now)
+
 # Tasks
-+ [ ] 判断客户端上传是否一定需要IP地址作为目标？
++ [x] 判断客户端上传是否一定需要IP地址作为目标：不用
 + [x] 首先读取Cookie, 使用`Auth/Check`判断或者获取新Cookie
 + [x] 使用`GetAuthToken`获取`szToken`，用于构建二维码。
 + [x] 手机扫码访问`UniAuth.aspx`界面进行授权
 + [x] 可以使用阻塞的HTTP访问判断是否授权完成
-+ 此时Cookie生效，使用`Auth/Check`可以判断
-+ 持久化Cookie
-+ 后续可以随意调用API。
++ [x] 此时Cookie生效，使用`Auth/Check`可以判断
++ [x] 持久化Cookie
++ [x] 后续可以随意调用API。
 + [x] 从打印任务中获取必要信息
 + [x] 发送HTTP请求，创建Job
-+ ~~使用`Compress.dll`压缩PJL文件~~Use `gzip`.
-+ 发送HTTP请求，上传文件
-+ 发送结束请求
-+ 清除打印队列内容和临时文件。
-+ 查看当前在线队列
-
++ [ ] ~~使用`Compress.dll`压缩PJL文件~~Use `gzip`.
++ [x] 发送HTTP请求，上传文件
++ [x] 发送结束请求
++ [ ] 清除打印队列内容和临时文件。
++ [ ] 类Unix系统支持 
+  + [ ] 编写CUPS Backend
+  + [ ] 编写PPD文件
++ [ ] 查看当前在线队列
++ [ ] 查询历史打印信息
++ [ ] 使用IPP提供服务
++ [ ] 接入网页端PDF上传接口
 # API
 ## Common API
 
@@ -27,9 +41,9 @@
     "dwProperty": 0,
     "szJobName": "屏幕截图 2024-10-02 233633",
     "dwCopies": 1,
-    "szAttribe": "single,collate,NUP1,",
-    "szPaperDetail": "[{\"dwPaperID\":9,\"dwBWPages\":1,\"dwColorPages\":0,\"dwPaperNum\":1}]",
-    "szColorMap": "0"
+    "szAttribe": "single,collate,NUP1,", // "color,vdup,collate,NUP1," // vdup means Vertical Duplex. // "color,hdup,collate,NUP1,"
+    "szPaperDetail": "[{\"dwPaperID\":9,\"dwBWPages\":1,\"dwColorPages\":0,\"dwPaperNum\":1}]", // dwPaperID 9 means A4 dwBWPages 5 dwColorPages 0, dwPaperNum 3. // Notice dwPaper Num is calculated by total paper number.
+    "szColorMap": "0" // "11101" Color
     }
     ```
     ```json
@@ -231,7 +245,7 @@ Use CUPS.
 
 + [Raster Driver (PCL)](https://www.cups.org/doc/raster-driver.html)
 + [PostScript Driver](https://www.cups.org/doc/postscript-driver.html)
-    + Can be combine with custom filters like `foomatic-rip` or `[gs](https://www.ghostscript.com/)`
+    + Can be combine with custom filters like `foomatic-rip` or [`gs`](https://www.ghostscript.com/)
     + Custom backend like [cups-backend](https://www.cups.org/doc/man-backend.html)
 
 Generate PPD Files for CUPS.
@@ -282,4 +296,91 @@ DriverType ps
 + `/etc/cups/ppd`: Stores PPD File?
 + `/usr/lib/cups`: Stores Backend
 + `/usr/share/cups`: ??
-+ `/usr/share/ppd/cupsfilters/`
++ `/usr/share/ppd/cupsfilters/`: Default PPD Files.
+
+ipp backend?
+
+CUPS Filter on Debian Wiki
+
+# Get a PPD File
+
+`/usr/sbin/lpinfo -m | less`
+
+`-m`参数：决定过滤器输出。
++ 这些MIME类型定义在`/usr/share/cups/mime`中。
++ MIME间如何互转也定义在其中。
++ 默认：`application/pdf`，作为Filter间一般的传递文件。
++ application/postscript
++ application/vnd.cups-pdf：真的PDF
++ application/vnd.cups-postscript
++ application/vnd.cups-raster：CUPS Raster File
++ `printer/foo`表示使用`-p`指定的PPD文件中的Filters流。
+
+查看过程中使用的过滤器
+
+/usr/sbin/cupsfilter -p laserjet2200.ppd -m printer/foo -e --list-filters
+
+
+`/usr/sbin/cupsfilter -p laserjet2200.ppd -m application/vnd.cups-pdf -o number-up=2 test.ps > out.pdf 2> log`
+`pdftopdf`。实现了nUP变换的PDF。
+
+The latter filter performs the very important task of page management; the application of N-up is obvious in a PDF viewer.
+
+`-e` option. Use Filter in PPD File.
+
+`/usr/sbin/cupsfilter -p laserjet2200.ppd -m printer/foo -e -o number-up=2 --list-filters test.ps`
+
+`/usr/sbin/cupsfilter -p laserjet2200.ppd -m printer/foo -o number-up=2 test.ps -e > out.pcl 2> log`
+
+*cupsFilter or *cupsFilter2 line. This will be the last filter applied in the filter chain; laserjet2200.ppd has
+ -m "printer/foo" is nessesary...
+
+*cupsFilter "application/vnd.cups-raster 100 rastertogutenprint 5.2"
+
+`:/usr/share/cups/mime`
+
+-m mime/type
+Specifies the destination file type. The default file type is application/pdf. Use **printer/foo** to convert to the printer format defined by the filters in the PPD file.
+
+/usr/sbin/cupsfilter -e  -p /usr/share/ppd/cupsfilters/pxlmono.ppd test.ps -m printer/foo > test2.pcl
+
++ A PPD For Printer.
++ A PPD For Preview.
+gstopdf
+
+/usr/lib/cups/filter/gstopxl
+
+
+cupsFilter
+*cupsFilter: "source/type cost program"
+
+This string keyword provides a conversion rule from the given source type to the printer's native format using the filter "program". If a printer supports the source type directly, the special filter program "-" may be specified.
+
+Examples:
+
+*% Standard raster printer driver filter
+*cupsFilter: "application/vnd.cups-raster 100 rastertofoo"
+
+*% Plain text filter
+*cupsFilter: "text/plain 10 texttofoo"
+
+*% Pass-through filter for PostScript printers
+*cupsFilter: "application/vnd.cups-postscript 0 -"
+CUPS 1.5cupsFilter2
+*cupsFilter2: "source/type destination/type cost program"
+
+This string keyword provides a conversion rule from the given source type to the printer's native format using the filter "program". If a printer supports the source type directly, the special filter program "-" may be specified. The destination type is automatically created as needed and is passed to the filters and backend as the FINAL_CONTENT_TYPE value.
+
+Note:
+The presence of a single cupsFilter2 keyword in the PPD file will hide any cupsFilter keywords from the CUPS scheduler. When using cupsFilter2 to provide filters specific for CUPS 1.5 and later, provide a cupsFilter2 line for every filter and a cupsFilter line for each filter that is compatible with older versions of CUPS.
+
+Examples:
+
+*% Standard raster printer driver filter
+*cupsFilter2: "application/vnd.cups-raster application/vnd.foo 100 rastertofoo"
+
+*% Plain text filter
+*cupsFilter2: "text/plain application/vnd.foo 10 texttofoo"
+
+*% Pass-through filter for PostScript printers
+*cupsFilter2: "application/vnd.cups-postscript application/postscript 0 -"
