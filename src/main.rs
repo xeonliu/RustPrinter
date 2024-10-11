@@ -2,9 +2,15 @@ mod client;
 mod spooler;
 
 use crate::client::Client;
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use regex::Regex;
 use spooler::{windows::WindowsSpooler, Job, Spooler};
 use std::env;
+use std::error::Error;
+use std::fs;
+use std::fs::File;
+use std::io::{self, Read};
 
 enum OS {
     Windows((u32, String)),
@@ -44,6 +50,9 @@ impl OS {
     }
 }
 
+const CONFIG_DIR: &str = r"C:\upmclient";
+const TEMP_DIR: &str = r"C:\upmclient\temp";
+
 #[tokio::main]
 async fn main() {
     // TODO: Load Config Files
@@ -62,8 +71,6 @@ async fn main() {
     // Check Operating System
     let op_system = OS::parse_args(&args);
 
-    // TODO: Find PCL File.
-
     // Parse Job Info
     let job: Job = match op_system {
         OS::Windows((job_id, printer_name)) => {
@@ -74,21 +81,72 @@ async fn main() {
     }
     .expect("Can not find desired Job");
 
+    // Find PCL File.
+    let pcl_file_path = format!("{}/{}.tmp", TEMP_DIR, job.id);
+    if !fs::metadata(&pcl_file_path).is_ok() {
+        eprintln!("PCL file not found: {}", pcl_file_path);
+        return;
+    }
+
+    // Compress the PCL File
+    let compressed_pcl_file_path = format!("{}/{}.tmp2", TEMP_DIR, job.id);
+
+    gzip_compress(&pcl_file_path, &compressed_pcl_file_path).expect("Compress Failed.");
+
     let client = Client::new();
 
     // TODO: File Access should not be the client's Job
-    client.load_cookie("./test.txt");
+    client.load_cookie(&(CONFIG_DIR.to_string() + "/cookies.txt"));
     if !client.check_login().await.unwrap() {
         println!("Not Logged in");
         client.login().await.unwrap();
     }
 
     println!("Logged in");
+
+    client.store_cookie(&(CONFIG_DIR.to_string() + "/cookies.txt"));
+
+    // Confirmation
+    {
+        println!("请确认打印任务信息。按回车键确认上传打印文件；按其他任意键退出。");
+        println!("目前不支持计算黑白彩色混合时各自的页数，建议在驱动中设置打印色彩为“黑白”。\n若以下数据不正确，请取消打印。");
+        println!("{:?}", Client::job_to_paper_detail(&job));
+        println!("Press Enter to continue...");
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+    }
+
     let id = client.create_job(&job).await.unwrap();
-    println!("jobid: {}", id);
+    println!("Remote jobId: {}", id);
 
     // Load from Tmp File.
-    client.upload_job(id, "./test.txt").await.unwrap();
+    client
+        .upload_job(id, &compressed_pcl_file_path)
+        .await
+        .unwrap();
+
+    let embedded_file: &[u8] = include_bytes!("../resources/preview.pvg");
+
+    client
+        .upload_preview(id, Vec::from(embedded_file))
+        .await
+        .unwrap();
+
     client.set_job(id).await.unwrap();
-    client.store_cookie("./test.txt");
+    client.store_cookie(&(CONFIG_DIR.to_string() + "/cookies.txt"));
+
+    // Wait for user input to exit
+    println!("Press Enter to exit...");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+}
+
+/// Compress input to output in gzip format
+fn gzip_compress(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
+    let mut input_file = File::open(&input_path)?;
+    let mut output_file = File::create(&output_path)?;
+    let mut encoder = GzEncoder::new(&mut output_file, Compression::default());
+    std::io::copy(&mut input_file, &mut encoder)?;
+    encoder.finish()?;
+    Ok(())
 }
