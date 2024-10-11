@@ -1,3 +1,4 @@
+use crate::client::Client;
 use crate::spooler::{Color, Direction, Duplex, Job, Size, Spooler};
 
 use serde::de::IntoDeserializer;
@@ -113,12 +114,9 @@ impl Spooler for WindowsSpooler {
         }
         let job_info: JOB_INFO_2W = unsafe { *(buffer.as_ptr() as *const JOB_INFO_2W) };
 
-        // unsafe {
-        //     // NT EMF 1.008
-        //     println!("{:?}", job_info.pDatatype.to_string().unwrap());
-        // }
+        let name = unsafe { job_info.pDocument.to_string().unwrap() };
+        println!("Name: {:?}", name);
 
-        // println!("{:?}", job_info);
         let number = job_info.TotalPages;
         println!("Total Pages: {:?}", number);
 
@@ -137,6 +135,7 @@ impl Spooler for WindowsSpooler {
                 .try_into()
                 .expect("Paper Size Not Supported")
         };
+        println!("Size: {:?}", paper_size);
 
         let direction: Direction = unsafe {
             dev_mode
@@ -146,8 +145,10 @@ impl Spooler for WindowsSpooler {
                 .try_into()
                 .expect("Orientation not supported")
         };
+        println!("Orientation: {:?}", direction);
 
         let duplex: Duplex = dev_mode.dmDuplex.0.try_into().unwrap();
+        println!("Duplex: {:?}", duplex);
 
         let color: Color = dev_mode
             .dmColor
@@ -155,7 +156,6 @@ impl Spooler for WindowsSpooler {
             .try_into()
             .expect("Color Mode Not Supported");
 
-        println!("Size: {:?}", paper_size);
         println!("Color: {:?}", color);
 
         let copies: u32 = unsafe { dev_mode.Anonymous1.Anonymous1.dmCopies }
@@ -165,7 +165,7 @@ impl Spooler for WindowsSpooler {
 
         return Some(Job {
             id: job_info.JobId,
-            name: unsafe { job_info.pDocument.to_string().unwrap() },
+            name,
             color,
             number,
             paper_size,
@@ -184,6 +184,11 @@ impl Spooler for WindowsSpooler {
 fn test() {
     let sp = WindowsSpooler::new("联创打印管理系统").unwrap();
     println!("{:?}", sp);
-    let jb = sp.get_job(4);
+    let jb = sp.get_job(6);
     println!("{:?}", jb);
+
+    if let Some(job) = jb {
+        println!("{:?}", Client::job_to_sz_attribute(&job));
+        println!("{:?}", Client::job_to_paper_detail(&job));
+    }
 }

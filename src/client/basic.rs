@@ -13,6 +13,7 @@ use std::io::{Read, Write};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::oneshot;
+use windows::Win32::Graphics::Printing::JOB_ACCESS_ADMINISTER;
 
 impl Client {
     pub fn new() -> Self {
@@ -80,8 +81,8 @@ impl Client {
             .get(format!("{}/api/client/Auth/GetAuthToken", self.base_url))
             .send()
             .await?;
-        println!("{:?}", res);
         let json: GetAuthTokenResponse = res.json().await.expect("AUTH JSON PARSE ERROR");
+        println!("Login Token: {}", json.sz_token);
         Ok(json.sz_token)
     }
 
@@ -95,7 +96,7 @@ impl Client {
 
         // Generate QR Code Using the token
         let login_url = format!("http://pay.unifound.net/uniwx/s.aspx?c=uniauth_1_{}", token);
-        println!("login_url: {}", login_url);
+        println!("在微信中打开该链接以登录： {}", login_url);
 
         // spawn another thread for waiting.
         let (tx, rx) = oneshot::channel();
@@ -147,6 +148,9 @@ impl Client {
     }
 
     /* Put it here or in Job Struct? */
+    /// Constructs a String
+    /// + Black & Simplex "single,collate,NUP1,"
+    /// + Color & Vertical "color,vdup,collate,NUP1,"
     pub fn job_to_sz_attribute(job: &Job) -> String {
         let mut attributes: Vec<String> = Vec::new();
 
@@ -160,9 +164,7 @@ impl Client {
         }
 
         match job.duplex {
-            Duplex::SIMPLEX => {
-                todo!()
-            }
+            Duplex::SIMPLEX => {}
             Duplex::HORIZONTAL => {
                 attributes.push("hdup".into());
             }
@@ -181,10 +183,19 @@ impl Client {
     pub fn job_to_paper_detail(job: &Job) -> String {
         let paper_id: i16 = job.paper_size.clone().into();
         // TODO: Identify BW_Pages?
-        let bw_pages = job.number;
-        let color_pages = 0;
-        // TODO
-        let paper_num = 0;
+        let bw_pages = match job.color {
+            Color::BW => job.number,
+            _ => 0,
+        };
+        let color_pages = match job.color {
+            Color::COLOR => job.number,
+            _ => 0,
+        };
+
+        let paper_num = match job.duplex {
+            Duplex::SIMPLEX => job.number,
+            _ => (job.number + 1) / 2,
+        };
 
         return format!(
             "[{{\"dwPaperID\":{},\"dwBWPages\":{},\"dwColorPages\":{},\"dwPaperNum\":{}}}]",
@@ -208,9 +219,10 @@ impl Client {
             dw_copies: job.copies.into(),
             sz_attribe,
             sz_paper_detail,
+            // TODO: Whether each page is colored or not?
             sz_color_map: match job.color {
-                Color::BW => "0".into(),
-                Color::COLOR => "11101".into(),
+                Color::BW => "0".repeat(job.number as usize),
+                Color::COLOR => "1".repeat(job.number as usize),
             },
         };
 
@@ -222,7 +234,10 @@ impl Client {
             .await?;
 
         let res: CreateJobResponse = res.json().await?;
-        println!("{:?}", res);
+        println!(
+            "New job with remote job id {} has been created.",
+            res.result.dw_job_id
+        );
 
         Ok(res.result.dw_job_id)
     }
@@ -261,11 +276,9 @@ impl Client {
     pub async fn upload_preview(
         &self,
         dw_jobid: usize,
-        filepath: &str,
+        bin: Vec<u8>,
     ) -> Result<(), Box<dyn Error>> {
-        let part = multipart::Part::file(filepath)
-            .await?
-            .file_name("preview.pvg");
+        let part = multipart::Part::bytes(bin).file_name("preview.pvg");
         let form = multipart::Form::new().part("szFile", part);
 
         let res = self
