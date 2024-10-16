@@ -7,6 +7,8 @@ It is a reversed version of the official `UPMClient` Windows driver from `Unifou
 
 On `Windows` it works as an **extension** of the original driver & port monitor (for now)
 
+In the future, it will work as an **interpreter** of PCL & **Frontend** for major platforms.
+
 # Tasks
 + [x] 判断客户端上传是否一定需要IP地址作为目标：不用
 + [x] 首先读取Cookie, 使用`Auth/Check`判断或者获取新Cookie
@@ -23,17 +25,21 @@ On `Windows` it works as an **extension** of the original driver & port monitor 
 + [x] 发送结束请求
 + [ ] 清除打印队列内容和临时文件。
 + [ ] 类Unix系统支持 
-  + [ ] 编写CUPS Backend
-  + [ ] 编写PPD文件
+  + [ ] ~~编写CUPS Backend~~
+  + [ ] ~~编写PPD文件~~
+  + [ ] Use Socket Backend
+  + [ ] PCL Intepretation (GhostPDL?)
 + [ ] 查看当前在线队列
 + [ ] 查询历史打印信息
-+ [ ] 使用IPP提供服务
++ [ ] ~~使用IPP提供服务~~
 + [ ] 接入网页端PDF上传接口
 # API
 ## Common API
-
++ Login
 ## Web API
-
++ History
++ Device Availablility
++ PDF / Word Upload
 ## UPMClient API
 + `POST /api/client/PrintJob/Create`
     ```json
@@ -82,6 +88,7 @@ On `Windows` it works as an **extension** of the original driver & port monitor 
     multipart/form-data; boundary=---------------------------Boundaryd1vksiw0aMcjdDd46cs3c
     ```
 + `POST /api/client/PrintJob/UploadPreview?dwJobId={} HTTP/1.1`
+  + Upload PVG File 
 + `POST /api/client/PrintJob/Set HTTP/1.1`
     ```
     Object
@@ -182,15 +189,11 @@ C:\upmclient
 
 Spooler队列中是EMF文件
 
-Spooler队列中是EMF文件
-
 >The print spooler supports the following data types:
 >
 > Enhanced metafile (EMF).
 ASCII text.
 Raw data, which includes printer data types such as PostScript, PCL, and custom data types.
-
-交给语言处理器（驱动）后生成PJL文件。
 
 交给语言处理器（驱动）后生成PJL文件。
 
@@ -204,6 +207,8 @@ Technical Reference Manual](https://developers.hp.com/sites/default/files/PJL_Te
 1990年的[PCL5](https://developers.hp.com/hp-printer-command-languages-pcl/doc/pcl5)。
 
 可以使用HP的[PCL5通用驱动](https://superuser.com/questions/1797510/where-can-i-find-a-windows-10-pcl5-driver-for-an-unsupported-laserjet-printer)(HP Universal Print Driver for Windows - PCL 5，版本号：upd-pcl5-x64-6.1.0.20062，目前官网已不提供下载)打印到端口。
+
+Should support PCL6 as well.
 
 > Windows是如何控制打印机的？如何删除打印任务？
 
@@ -221,11 +226,16 @@ SetJob(hPrinter, `job_id`, 0, NULL, JOB_CONTROL_DELETE);
 
 > 文件是怎么压缩的？
 
-调用了`Compress.dll`，内部实现尚未逆向。
+~~调用了`Compress.dll`，内部实现尚未逆向。~~
 
-~~> 如何使用Rust加载dll？~~
+Using `gzip`
 
-~~好像也有`crate`~~
+> 如何使用Rust加载dll？
+
+好像也有`crate`, `libloading`
+
+> How to get `.lib` from `.dll` files?
+
 
 
 > 有些东西写在源代码中，但Fiddler没抓到？
@@ -247,6 +257,8 @@ Use CUPS.
 + [PostScript Driver](https://www.cups.org/doc/postscript-driver.html)
     + Can be combine with custom filters like `foomatic-rip` or [`gs`](https://www.ghostscript.com/)
     + Custom backend like [cups-backend](https://www.cups.org/doc/man-backend.html)
+
+Choose PPD Files & Use Socket Backend
 
 Generate PPD Files for CUPS.
 
@@ -297,14 +309,18 @@ DriverType ps
 + `/usr/lib/cups`: Stores Backend
 + `/usr/share/cups`: ??
 + `/usr/share/ppd/cupsfilters/`: Default PPD Files.
++ `/var/log/cups`: Debug Log
 
 ipp backend?
 
 CUPS Filter on Debian Wiki
 
-# Get a PPD File
-
+## Get a PPD File
+`lpinfo -m`
 `/usr/sbin/lpinfo -m | less`
+## ~~CUPS Filter~~
+
+Checkout Discription on [Debian Site](https://wiki.debian.org/CUPSFilter).
 
 `-m`参数：决定过滤器输出。
 + 这些MIME类型定义在`/usr/share/cups/mime`中。
@@ -322,7 +338,7 @@ CUPS Filter on Debian Wiki
 
 
 `/usr/sbin/cupsfilter -p laserjet2200.ppd -m application/vnd.cups-pdf -o number-up=2 test.ps > out.pdf 2> log`
-`pdftopdf`。实现了nUP变换的PDF。
+`pdftopdf`。实现了`number-up`变换的PDF。
 
 The latter filter performs the very important task of page management; the application of N-up is obvious in a PDF viewer.
 
@@ -337,7 +353,7 @@ The latter filter performs the very important task of page management; the appli
 
 *cupsFilter "application/vnd.cups-raster 100 rastertogutenprint 5.2"
 
-`:/usr/share/cups/mime`
+`/usr/share/cups/mime`
 
 -m mime/type
 Specifies the destination file type. The default file type is application/pdf. Use **printer/foo** to convert to the printer format defined by the filters in the PPD file.
@@ -384,3 +400,12 @@ Examples:
 
 *% Pass-through filter for PostScript printers
 *cupsFilter2: "application/vnd.cups-postscript application/postscript 0 -"
+
+
+## Register as a Socket Printer
+
+```
+lpadmin -p RupmPrinter -E -v socket://127.0.0.1:12345 -m drv:///sample.drv/laserjet.ppd
+```
+
+Send PCL Instruction through Socket
