@@ -158,15 +158,35 @@ impl Spooler for WindowsSpooler {
 
         println!("Color: {:?}", color);
 
+        // TODO: Identify BW_Pages?
         let copies: u32 = unsafe { dev_mode.Anonymous1.Anonymous1.dmCopies }
             .try_into()
             .expect("Error on copies");
         println!("Copies: {:?}", copies);
 
+        let bw_pages = match color {
+            Color::BW => job.number,
+            _ => 0,
+        };
+
+        let color_pages = match color {
+            Color::COLOR => job.number,
+            _ => 0,
+        };
+
+        // TODO: Whether each page is colored or not?
+        let color_map = match color {
+            Color::BW => "0".repeat(job.number as usize),
+            Color::COLOR => "1".repeat(job.number as usize),
+        };
+
         return Some(Job {
             id: job_info.JobId,
             name,
             color,
+            bw_pages,
+            color_pages,
+            color_map,
             number,
             paper_size,
             direction,
