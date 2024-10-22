@@ -33,6 +33,15 @@ In the future, it will work as an **interpreter** of PCL & **Frontend** for majo
 + [ ] 查询历史打印信息
 + [ ] ~~使用IPP提供服务~~
 + [ ] 接入网页端PDF上传接口
+
+# Dependencies
+
++ GhostPCL(PDL): AGPL 3.0
+
+# License
+
+AGPL 3.0
+
 # API
 ## Common API
 + Login
@@ -409,3 +418,11 @@ lpadmin -p RupmPrinter -E -v socket://127.0.0.1:12345 -m drv:///sample.drv/laser
 ```
 
 Send PCL Instruction through Socket
+
+### Build GhostPCL
+```
+./autogen.sh --with-drivers=PNG --without-libtiff --without-libidn --without-libpaper  --without-tesseract --without-ijs  --without-urf  --without-so   --without-cal --without-pdftoraster --with-pcl=gpcl6 --with-pdf=no -with-gpdl=no --with-gs=no --with-xps=no --without-jbig2dec --disable-gtk --disable-cups --disable-openjpeg
+
+make gpcl6
+make libgpcl6
+```

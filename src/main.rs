@@ -1,16 +1,19 @@
 mod client;
+mod parser;
 mod spooler;
+mod server;
 
 use crate::client::Client;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use regex::Regex;
-use spooler::{windows::WindowsSpooler, Job, Spooler};
+#[cfg(target_os = "windows")]
+use spooler::windows::WindowsSpooler;
 use std::env;
 use std::error::Error;
 use std::fs;
 use std::fs::File;
-use std::io::{self, Read};
+use RustPrinter::Job;
 
 enum OS {
     Windows((u32, String)),
@@ -30,10 +33,10 @@ impl OS {
         let caps = printer_re.captures(arg_2)?;
         let printer_name = caps.get(1).map(|m| m.as_str().to_string())?;
 
-        return Some(OS::Windows((job_id, printer_name)));
+        Some(OS::Windows((job_id, printer_name)))
     }
 
-    fn parse_args(args: &Vec<String>) -> Self {
+    fn parse_args(args: &[String]) -> Self {
         if args.len() < 3 {
             eprintln!(
                 "Windows Usage: {} /JOBID:[JOBID] /PRINTER:[PRINTER_NAME]",
@@ -46,7 +49,7 @@ impl OS {
             return os;
         }
 
-        return OS::Others;
+        OS::Others
     }
 }
 
@@ -73,6 +76,7 @@ async fn main() {
 
     // Parse Job Info
     let job: Job = match op_system {
+        #[cfg(target_os = "windows")]
         OS::Windows((job_id, printer_name)) => {
             let sp = WindowsSpooler::new(&printer_name).unwrap();
             sp.get_job(job_id)
@@ -83,7 +87,7 @@ async fn main() {
 
     // Find PCL File.
     let pcl_file_path = format!("{}/{}.tmp", TEMP_DIR, job.id);
-    if !fs::metadata(&pcl_file_path).is_ok() {
+    if fs::metadata(&pcl_file_path).is_err() {
         eprintln!("PCL file not found: {}", pcl_file_path);
         return;
     }
@@ -143,8 +147,8 @@ async fn main() {
 
 /// Compress input to output in gzip format
 fn gzip_compress(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
-    let mut input_file = File::open(&input_path)?;
-    let mut output_file = File::create(&output_path)?;
+    let mut input_file = File::open(input_path)?;
+    let mut output_file = File::create(output_path)?;
     let mut encoder = GzEncoder::new(&mut output_file, Compression::default());
     std::io::copy(&mut input_file, &mut encoder)?;
     encoder.finish()?;
