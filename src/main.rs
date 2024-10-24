@@ -1,5 +1,6 @@
 mod client;
 mod spooler;
+mod parser;
 
 use crate::client::Client;
 use flate2::write::GzEncoder;

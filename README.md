@@ -18,7 +18,7 @@ On `Windows` it works as an **extension** of the original driver & port monitor 
 + [x] 后续可以随意调用API。
 + [x] 从打印任务中获取必要信息
 + [x] 发送HTTP请求，创建Job
-+ [ ] ~~使用`Compress.dll`压缩PJL文件~~Use `gzip`.
++ [x] ~~使用`Compress.dll`压缩PJL文件~~Use `gzip`.
 + [x] 发送HTTP请求，上传文件
 + [x] 发送结束请求
 + [ ] 清除打印队列内容和临时文件。
@@ -384,3 +384,31 @@ Examples:
 
 *% Pass-through filter for PostScript printers
 *cupsFilter2: "application/vnd.cups-postscript application/postscript 0 -"
+
+PCL 5 Parser?
+
+```
+string* "\x1B&l0O"    // Orientation
+string* "\x1B&l26A"    // Page Size
+string* "\x1B&l7H"    // Media Source
+string* "\x1B&l0S"    // Simplex/Duplex Mode
+
+// Color Checking
+
+string* "\x1B*v6W"    // Configure Image Data (CID)
+hex_raw* [ 00 03 08 08 08 08 ]
+string* "\x1B*v0a"    // Color Component 1
+      string* "0b"    // Color Component 2
+      string* "0c"    // Color Component 3
+      string* "7i"    // Assign Color Index
+      string* "255a"    // Color Component 1
+      string* "255b"    // Color Component 2
+      string* "255c"    // Color Component 3
+      string* "0I"    // Assign Color Index
+
+// End of Page
+
+string* "\x0C" // Form Feed
+```
+
+.\gpcl6win64.exe -sDEVICE=png16 -o %03d.png  -r100 C:\upmclient\temp\17.tmp
