@@ -178,14 +178,6 @@ impl Client {
     pub fn job_to_paper_detail(job: &Job) -> String {
         let paper_id: i16 = job.paper_size.clone().into();
         // TODO: Identify BW_Pages?
-        let bw_pages = match job.color {
-            Color::BW => job.number,
-            _ => 0,
-        };
-        let color_pages = match job.color {
-            Color::COLOR => job.number,
-            _ => 0,
-        };
 
         let paper_num = match job.duplex {
             Duplex::SIMPLEX => job.number,
@@ -194,7 +186,7 @@ impl Client {
 
         format!(
             "[{{\"dwPaperID\":{},\"dwBWPages\":{},\"dwColorPages\":{},\"dwPaperNum\":{}}}]",
-            paper_id, bw_pages, color_pages, paper_num,
+            paper_id, job.bw_pages, job.color_pages, paper_num,
         )
     }
 

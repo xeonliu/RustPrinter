@@ -3,12 +3,16 @@
 #![allow(non_snake_case)]
 
 use std::{
-    default, error::Error, ffi::{CStr, CString}, io, os::raw::c_void, ptr
+    ffi::{CStr, CString},
+    io,
+    os::raw::c_void,
+    ptr,
 };
 
 use super::PCLParser;
 use image::{DynamicImage, GenericImageView, Pixel};
 use RustPrinter::Job;
+use chrono::Local;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
@@ -22,7 +26,7 @@ fn is_color(img: &DynamicImage) -> bool {
             return true;
         }
     }
-    return false;
+    false
 }
 
 #[derive(Debug)]
@@ -108,33 +112,37 @@ impl PCLParser for GhostPCL {
             }
         }
         // Count Page Number
-        let page_size = images.len();
+        let number: u32 = images.len().try_into().unwrap();
         // Check their color
-        let color_map: Vec<bool> = images.iter().map(|img| is_color(img)).collect();
-        let color_size = color_map.iter().filter(|&&c| c).count();
-        let color_bitmap: String = color_map
+        let color_map: Vec<bool> = images.iter().map(is_color).collect();
+        let color_pages: u32 = color_map.iter().filter(|&&c| c).count().try_into().unwrap();
+        let color_map: String = color_map
             .iter()
             .map(|c| match c {
                 true => "1",
                 false => "0",
             })
             .collect();
+        let bw_pages = number - color_pages;
 
-        Job {
+        let timestamp = Local::now().format("%Y%m%d%H%M%S").to_string();
+
+        Some(Job {
             id: 0,
-            name: "PCL Job".into(),
-            color: match color_size {
+            name: timestamp,
+            color: match color_pages {
                 0 => RustPrinter::Color::BW,
                 _ => RustPrinter::Color::COLOR,
             },
-            number: page_size,
+            bw_pages,
+            color_pages,
+            color_map,
+            number,
             copies: todo!(),
             paper_size: todo!(),
             direction: todo!(),
             duplex: todo!(),
-        }
-
-        None
+        })
     }
 
     fn get_job_from_raw(&self, content: &[u8]) -> Option<RustPrinter::Job> {
