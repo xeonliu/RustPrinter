@@ -1,6 +1,5 @@
-use std::default;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 // A General Status Code Response
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -3,17 +3,15 @@ use super::{consts::BASE_URL, Client};
 use crate::client::model::{
     CreateJobResponse, GetAuthTokenResponse, StatusCodeResponse, WaitUserInResponse,
 };
-use crate::spooler::{Color, Duplex, Job};
 use reqwest::cookie::CookieStore;
 use reqwest::{cookie, multipart, Url};
 use std::error::Error;
-use std::fmt::format;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::oneshot;
-use windows::Win32::Graphics::Printing::JOB_ACCESS_ADMINISTER;
+use crate::job::{Color, Duplex, Job};
 
 impl Client {
     pub fn new() -> Self {
@@ -120,18 +118,15 @@ impl Client {
                     .send()
                     .await;
 
-                match res {
-                    Ok(res) => {
-                        let res = res
-                            .json::<WaitUserInResponse>()
-                            .await
-                            .expect("Wrong String");
-                        if res.result.is_some() {
-                            tx.send("Success").unwrap();
-                            return;
-                        }
+                if let Ok(res) = res {
+                    let res = res
+                        .json::<WaitUserInResponse>()
+                        .await
+                        .expect("Wrong String");
+                    if res.result.is_some() {
+                        tx.send("Success").unwrap();
+                        return;
                     }
-                    Err(_) => {}
                 }
             }
         });
@@ -165,10 +160,10 @@ impl Client {
 
         match job.duplex {
             Duplex::SIMPLEX => {}
-            Duplex::HORIZONTAL => {
+            Duplex::DUPLEX_SHORT_EDGE => {
                 attributes.push("hdup".into());
             }
-            Duplex::VERTICAL => {
+            Duplex::DUPLEX_LONG_EDGE => {
                 attributes.push("vdup".into());
             }
         }
@@ -183,25 +178,16 @@ impl Client {
     pub fn job_to_paper_detail(job: &Job) -> String {
         let paper_id: i16 = job.paper_size.clone().into();
         // TODO: Identify BW_Pages?
-        let bw_pages = match job.color {
-            Color::BW => job.number,
-            _ => 0,
-        };
-        let color_pages = match job.color {
-            Color::COLOR => job.number,
-            _ => 0,
-        };
 
         let paper_num = match job.duplex {
             Duplex::SIMPLEX => job.number,
             _ => (job.number + 1) / 2,
         };
 
-        return format!(
+        format!(
             "[{{\"dwPaperID\":{},\"dwBWPages\":{},\"dwColorPages\":{},\"dwPaperNum\":{}}}]",
-            paper_id, bw_pages, color_pages, paper_num,
+            paper_id, job.bw_pages, job.color_pages, paper_num,
         )
-        .into();
     }
 
     pub async fn create_job(&self, job: &Job) -> Result<usize, Box<dyn Error>> {

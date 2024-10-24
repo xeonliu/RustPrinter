@@ -1,5 +1,6 @@
 use crate::client::Client;
-use crate::spooler::{Color, Direction, Duplex, Job, Size, Spooler};
+use crate::job::{Color, Duplex, Job, Orientation, Size};
+use crate::spooler::Spooler;
 
 use serde::de::IntoDeserializer;
 use windows::core::PCWSTR;
@@ -13,7 +14,7 @@ pub struct WindowsSpooler {
     printer_handle: Foundation::HANDLE,
 }
 
-impl Direction {}
+impl Orientation {}
 
 impl TryFrom<i16> for Size {
     type Error = &'static str;
@@ -22,15 +23,6 @@ impl TryFrom<i16> for Size {
             8 => Ok(Self::A3),
             9 => Ok(Self::A4),
             _ => Err("Size Error"),
-        }
-    }
-}
-
-impl Into<i16> for Size {
-    fn into(self) -> i16 {
-        match self {
-            Self::A3 => 8,
-            Self::A4 => 9,
         }
     }
 }
@@ -46,7 +38,7 @@ impl TryFrom<i16> for Color {
     }
 }
 
-impl TryFrom<i16> for Direction {
+impl TryFrom<i16> for Orientation {
     type Error = &'static str;
     fn try_from(value: i16) -> Result<Self, Self::Error> {
         match value {
@@ -62,8 +54,8 @@ impl TryFrom<i16> for Duplex {
     fn try_from(value: i16) -> Result<Self, Self::Error> {
         match Gdi::DEVMODE_DUPLEX(value) {
             DMDUP_SIMPLEX => Ok(Self::SIMPLEX),
-            DMDUP_HORIZONTAL => Ok(Self::HORIZONTAL),
-            DMDUP_VERTICAL => Ok(Self::VERTICAL),
+            DMDUP_HORIZONTAL => Ok(Self::DUPLEX_SHORT_EDGE),
+            DMDUP_VERTICAL => Ok(Self::DUPLEX_LONG_EDGE),
             _ => Err("Duplex Error"),
         }
     }
@@ -137,7 +129,7 @@ impl Spooler for WindowsSpooler {
         };
         println!("Size: {:?}", paper_size);
 
-        let direction: Direction = unsafe {
+        let direction: Orientation = unsafe {
             dev_mode
                 .Anonymous1
                 .Anonymous1
@@ -158,15 +150,35 @@ impl Spooler for WindowsSpooler {
 
         println!("Color: {:?}", color);
 
+        // TODO: Identify BW_Pages?
         let copies: u32 = unsafe { dev_mode.Anonymous1.Anonymous1.dmCopies }
             .try_into()
             .expect("Error on copies");
         println!("Copies: {:?}", copies);
 
+        let bw_pages = match color {
+            Color::BW => number,
+            _ => 0,
+        };
+
+        let color_pages = match color {
+            Color::COLOR => number,
+            _ => 0,
+        };
+
+        // TODO: Whether each page is colored or not?
+        let color_map = match color {
+            Color::BW => "0".repeat(number as usize),
+            Color::COLOR => "1".repeat(number as usize),
+        };
+
         return Some(Job {
             id: job_info.JobId,
             name,
             color,
+            bw_pages,
+            color_pages,
+            color_map,
             number,
             paper_size,
             direction,
