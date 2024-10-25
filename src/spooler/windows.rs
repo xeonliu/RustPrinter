@@ -1,8 +1,6 @@
-use crate::client::Client;
 use crate::job::{Color, Duplex, Job, Orientation, Size};
 use crate::spooler::Spooler;
 
-use serde::de::IntoDeserializer;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation;
 use windows::Win32::Graphics::Gdi::{self, DMDUP_HORIZONTAL, DMDUP_SIMPLEX, DMDUP_VERTICAL};
@@ -172,7 +170,7 @@ impl Spooler for WindowsSpooler {
             Color::COLOR => "1".repeat(number as usize),
         };
 
-        return Some(Job {
+        Some(Job {
             id: job_info.JobId,
             name,
             color,
@@ -184,7 +182,7 @@ impl Spooler for WindowsSpooler {
             direction,
             duplex,
             copies,
-        });
+        })
     }
 
     fn delete_job(&self) {
@@ -192,15 +190,10 @@ impl Spooler for WindowsSpooler {
     }
 }
 
-#[test]
-fn test() {
-    let sp = WindowsSpooler::new("联创打印管理系统").unwrap();
-    println!("{:?}", sp);
-    let jb = sp.get_job(6);
-    println!("{:?}", jb);
-
-    if let Some(job) = jb {
-        println!("{:?}", Client::job_to_sz_attribute(&job));
-        println!("{:?}", Client::job_to_paper_detail(&job));
-    }
-}
+// #[test]
+// fn test() {
+//     let sp = WindowsSpooler::new("联创打印管理系统").unwrap();
+//     println!("{:?}", sp);
+//     let jb = sp.get_job(6);
+//     println!("{:?}", jb);
+// }

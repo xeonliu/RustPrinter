@@ -1,11 +1,10 @@
 use std::{
-    error::Error,
     fs::{self, File},
     io::{Read, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
-use reqwest::{cookie, header::HeaderValue};
+use reqwest::header::HeaderValue;
 
 const APP_NAME: &str = "RupmPrinter";
 

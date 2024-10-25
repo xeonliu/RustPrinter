@@ -1,4 +1,3 @@
-use nom::bytes;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -65,7 +64,7 @@ impl Server {
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let server = Server::new(7878, ".".into()).await?;
+    let server = Server::new(7878, ".").await?;
     // Start Listening & Wait for response
     println!("Start Server");
     server.run().await;

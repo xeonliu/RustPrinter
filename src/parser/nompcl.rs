@@ -2,7 +2,7 @@ use crate::job::{Duplex, Job, Orientation, Size};
 use regex::Regex;
 use std::error::Error;
 use std::fs::File;
-use std::io::{self, BufReader, Read};
+use std::io::{BufReader, Read};
 
 fn parse_orientation(input: &str) -> Result<Orientation, &'static str> {
     let re = Regex::new(r"\x1B&l([01])[Oo]").unwrap();
@@ -74,12 +74,13 @@ pub fn parse_pcl(input_file: &str) -> Result<Job, Box<dyn Error>> {
 
     let buffer = String::from_utf8(ascii_contents).unwrap();
 
-    let mut job = Job::default();
-    job.paper_size = parse_paper_size(&buffer)?;
-    job.direction = parse_orientation(&buffer)?;
-    job.duplex = parse_duplex_binding(&buffer)?;
-    job.copies = parse_copies(&buffer)?;
-    Ok(job)
+    Ok(Job {
+        paper_size: parse_paper_size(&buffer)?,
+        direction: parse_orientation(&buffer)?,
+        duplex: parse_duplex_binding(&buffer)?,
+        copies: parse_copies(&buffer)?,
+        ..Default::default()
+    })
 }
 
 #[test]

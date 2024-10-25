@@ -8,8 +8,7 @@ use reqwest::cookie::CookieStore;
 use reqwest::header::HeaderValue;
 use reqwest::{cookie, multipart, Url};
 use std::error::Error;
-use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::oneshot;
@@ -30,7 +29,7 @@ impl Client {
     }
 
     pub fn load_cookie(&self, cookie: &str) {
-        self.jar.add_cookie_str(&cookie, &self.base_url);
+        self.jar.add_cookie_str(cookie, &self.base_url);
     }
 
     pub fn output_cookie(&self) -> Option<HeaderValue> {
@@ -292,15 +291,4 @@ impl Client {
         }
         Err("Set Job Failed".into())
     }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
-async fn test_client() {
-    let client = Client::new();
-    client.load_cookie("./test.txt");
-    // if !client.check_login().await.unwrap() {
-    //     println!("Not Logged in");
-    //     client.login().await.unwrap();
-    // }
-    client.store_cookie("./test.txt");
 }
