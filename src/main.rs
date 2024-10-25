@@ -7,6 +7,7 @@ mod spooler;
 
 use crate::client::Client;
 use config::{load_cookie, save_cookie, temp_dir};
+use core::panic;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use job::Job;
@@ -24,11 +25,13 @@ use std::fs::File;
 
 #[derive(Clone, Debug)]
 enum OS {
+    #[cfg(target_os = "windows")]
     Windows((u32, String)),
     Others,
 }
 
 impl OS {
+    #[cfg(target_os = "windows")]
     fn parse_windows_args(arg_1: &str, arg_2: &str) -> Option<OS> {
         // Check for Windows
         let jobid_re = Regex::new(r"/JOBID:(\d+)").unwrap();
@@ -44,19 +47,25 @@ impl OS {
     }
 
     fn parse_args(args: &[String]) -> Self {
-        if args.len() < 3 {
-            eprintln!(
-                "Windows Usage: {} /JOBID:[JOBID] /PRINTER:[PRINTER_NAME]",
-                args[0]
-            );
+        if args.len() == 1 {
+            println!("Working as server...");
             return OS::Others;
         }
 
-        if let Some(os) = OS::parse_windows_args(&args[1], &args[2]) {
-            return os;
+        if args.len() == 3 {
+            #[cfg(target_os = "windows")]
+            if let Some(os) = OS::parse_windows_args(&args[1], &args[2]) {
+                return os;
+            }
         }
 
-        OS::Others
+        eprintln!("Server Usage: {}", args[0]);
+        eprintln!(
+            "Windows Patch Usage: {} /JOBID:[JOBID] /PRINTER:[PRINTER_NAME]",
+            args[0]
+        );
+
+        panic!("Invalid args");
     }
 }
 
@@ -71,11 +80,14 @@ async fn main() {
 
     // Set Temp File Dir
     let temp_dir = match op_system {
+        #[cfg(target_os = "windows")]
         OS::Windows((_, _)) => String::from(r"C:\upmclient\temp"),
         OS::Others => String::from(temp_dir().to_str().unwrap()),
     };
 
+    #[allow(unused_assignments)]
     let mut job = Job::default();
+    #[allow(unused_assignments)]
     let mut pcl_file_path = String::new();
 
     match op_system {

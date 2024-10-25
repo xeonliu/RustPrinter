@@ -4,6 +4,7 @@ use crate::client::model::{
     CreateJobResponse, GetAuthTokenResponse, StatusCodeResponse, WaitUserInResponse,
 };
 use crate::job::{Color, Duplex, Job};
+use qr2term;
 use reqwest::cookie::CookieStore;
 use reqwest::header::HeaderValue;
 use reqwest::{cookie, multipart, Url};
@@ -74,7 +75,9 @@ impl Client {
 
         // Generate QR Code Using the token
         let login_url = format!("http://pay.unifound.net/uniwx/s.aspx?c=uniauth_1_{}", token);
+
         println!("在微信中打开该链接以登录： {}", login_url);
+        qr2term::print_qr(login_url).unwrap();
 
         // spawn another thread for waiting.
         let (tx, rx) = oneshot::channel();
