@@ -79,9 +79,6 @@ pub fn parse_pcl(input_file: &str) -> Result<Job, Box<dyn Error>> {
     job.direction = parse_orientation(&buffer)?;
     job.duplex = parse_duplex_binding(&buffer)?;
     job.copies = parse_copies(&buffer)?;
-
-    println!("{:?}", job);
-
     Ok(job)
 }
 

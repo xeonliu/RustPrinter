@@ -3,7 +3,9 @@ use super::{consts::BASE_URL, Client};
 use crate::client::model::{
     CreateJobResponse, GetAuthTokenResponse, StatusCodeResponse, WaitUserInResponse,
 };
+use crate::job::{Color, Duplex, Job};
 use reqwest::cookie::CookieStore;
+use reqwest::header::HeaderValue;
 use reqwest::{cookie, multipart, Url};
 use std::error::Error;
 use std::fs::File;
@@ -11,7 +13,6 @@ use std::io::{Read, Write};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::oneshot;
-use crate::job::{Color, Duplex, Job};
 
 impl Client {
     pub fn new() -> Self {
@@ -28,27 +29,12 @@ impl Client {
         Self { cli, jar, base_url }
     }
 
-    pub fn load_cookie(&self, cookie_path: &str) {
-        // Load Cookie String from file
-        if let Ok(mut file) = File::open(cookie_path) {
-            let mut cookie_string = String::new();
-            file.read_to_string(&mut cookie_string)
-                .expect("Unable to read data");
-            self.jar.add_cookie_str(&cookie_string, &self.base_url);
-        }
-
-        File::create(cookie_path).expect("Unable to create file");
+    pub fn load_cookie(&self, cookie: &str) {
+        self.jar.add_cookie_str(&cookie, &self.base_url);
     }
 
-    pub fn store_cookie(&self, cookie_path: &str) {
-        if let Some(cookie) = self.jar.cookies(&self.base_url) {
-            let mut file = File::create(cookie_path).expect("Unable to open file");
-            file.write_all(cookie.as_bytes())
-                .expect("Unable to write data");
-            println!("{:?}", cookie);
-        } else {
-            println!("No Cookie in Jar")
-        }
+    pub fn output_cookie(&self) -> Option<HeaderValue> {
+        self.jar.cookies(&self.base_url)
     }
 
     pub fn check_cookie(&self) -> bool {
@@ -85,11 +71,6 @@ impl Client {
     }
 
     pub(crate) async fn login(&self) -> Result<(), Box<dyn Error>> {
-        if !self.check_cookie() {
-            self.get_cookie().await?;
-            self.store_cookie("./test.txt");
-        }
-
         let token = self.get_token().await?;
 
         // Generate QR Code Using the token

@@ -10,7 +10,10 @@ use std::{
 };
 
 use super::{nompcl::parse_pcl, PCLParser};
-use crate::job::{Color, Job};
+use crate::{
+    config::ensure_directory,
+    job::{Color, Job},
+};
 use chrono::Local;
 use image::{DynamicImage, GenericImageView, Pixel};
 
@@ -44,7 +47,7 @@ fn pcl2png(input: &str, temp_dir: &str) -> Result<(), GhostPCLError> {
     static arg2: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"-dBATCH\0") };
     static arg3: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"-dSAFER\0") };
     static arg4: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"-sDEVICE=png16\0") };
-    static arg5: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"-r300\0") };
+    static arg5: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"-r100\0") };
     // Store CString instances in variables
     let arg6 = CString::new(format!("-sOutputFile={}/%d.png", temp_dir)).unwrap();
     let arg7 = CString::new(input).unwrap();
@@ -83,15 +86,13 @@ fn pcl2png(input: &str, temp_dir: &str) -> Result<(), GhostPCLError> {
     Ok(())
 }
 
-struct GhostPCL {
+pub struct GhostPCL {
     temp_dir: String,
 }
 
 impl GhostPCL {
-    fn new(dir: &str) -> io::Result<Self> {
-        if !std::path::Path::new(&dir).exists() {
-            std::fs::create_dir_all(dir)?;
-        }
+    pub fn new(dir: &str) -> io::Result<Self> {
+        ensure_directory(dir);
         Ok(Self {
             temp_dir: String::from(dir),
         })
@@ -113,6 +114,7 @@ impl PCLParser for GhostPCL {
             if path.extension().and_then(|s| s.to_str()) == Some("png") {
                 let img = image::open(&path).expect("Failed to open image");
                 images.push(img);
+                std::fs::remove_file(&path).expect("Failed to delete image file");
             }
         }
         // Count Page Number

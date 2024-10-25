@@ -16,8 +16,8 @@ pub enum Orientation {
 pub enum Duplex {
     #[default]
     SIMPLEX, // 普通打印
-    DUPLEX_SHORT_EDGE, // 短边翻转
     DUPLEX_LONG_EDGE,  // 长边翻转
+    DUPLEX_SHORT_EDGE, // 短边翻转
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

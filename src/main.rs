@@ -1,14 +1,19 @@
 mod client;
+mod config;
 mod job;
 mod parser;
 mod server;
 mod spooler;
 
 use crate::client::Client;
+use config::{load_cookie, save_cookie, temp_dir};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use job::Job;
+use parser::ghostpcl::GhostPCL;
+use parser::PCLParser;
 use regex::Regex;
+use server::Server;
 #[cfg(target_os = "windows")]
 use spooler::windows::WindowsSpooler;
 use spooler::Spooler;
@@ -17,9 +22,9 @@ use std::error::Error;
 use std::fs;
 use std::fs::File;
 
+#[derive(Clone, Debug)]
 enum OS {
     Windows((u32, String)),
-    Unix(()), // TODO
     Others,
 }
 
@@ -55,54 +60,64 @@ impl OS {
     }
 }
 
-const CONFIG_DIR: &str = r"C:\upmclient";
-const TEMP_DIR: &str = r"C:\upmclient\temp";
-
 #[tokio::main]
 async fn main() {
-    // TODO: Load Config Files
-    // Set Temp File Dir
-
     let args: Vec<String> = env::args().collect();
-
-    if args.len() < 3 {
-        eprintln!(
-            "Windows Usage: {} /JOBID:[JOBID] /PRINTER:[PRINTER_NAME]",
-            args[0]
-        );
-        return;
-    }
 
     // Check Operating System
     let op_system = OS::parse_args(&args);
 
-    // Parse Job Info
-    let job: Job = match op_system {
+    // Get PCL File & Job Info
+
+    // Set Temp File Dir
+    let temp_dir = match op_system {
+        OS::Windows((_, _)) => String::from(r"C:\upmclient\temp"),
+        OS::Others => String::from(temp_dir().to_str().unwrap()),
+    };
+
+    let mut job = Job::default();
+    let mut pcl_file_path = String::new();
+
+    match op_system {
         #[cfg(target_os = "windows")]
         OS::Windows((job_id, printer_name)) => {
             let sp = WindowsSpooler::new(&printer_name).unwrap();
-            sp.get_job(job_id)
+            job = sp.get_job(job_id).expect("No Job!");
+            pcl_file_path = format!("{}/{}.tmp", temp_dir, job.id);
         }
-        _ => None,
-    }
-    .expect("Can not find desired Job");
 
-    // Find PCL File.
-    let pcl_file_path = format!("{}/{}.tmp", TEMP_DIR, job.id);
+        OS::Others => {
+            // Waiting for socket sonnection
+            let server = Server::new(6981, &temp_dir)
+                .await
+                .expect("Cannot start Server");
+            // Save PCL File
+            server.run().await;
+            // PCL File Saved Here
+            pcl_file_path = temp_dir.clone() + "/temp.bin";
+            let parser = GhostPCL::new(&temp_dir).unwrap();
+            job = parser.get_job(&pcl_file_path).expect("No Job");
+        }
+    };
+
     if fs::metadata(&pcl_file_path).is_err() {
         eprintln!("PCL file not found: {}", pcl_file_path);
         return;
     }
 
+    // PCL & Job Info Completed At this Point.
+
     // Compress the PCL File
-    let compressed_pcl_file_path = format!("{}/{}.tmp2", TEMP_DIR, job.id);
+    let compressed_pcl_file_path = format!("{}/{}.tmp2", temp_dir, job.id);
 
     gzip_compress(&pcl_file_path, &compressed_pcl_file_path).expect("Compress Failed.");
 
     let client = Client::new();
 
-    // TODO: File Access should not be the client's Job
-    client.load_cookie(&(CONFIG_DIR.to_string() + "/cookies.txt"));
+    if let Some(cookie) = load_cookie() {
+        client.load_cookie(&cookie);
+    }
+
     if !client.check_login().await.unwrap() {
         println!("Not Logged in");
         client.login().await.unwrap();
@@ -110,18 +125,21 @@ async fn main() {
 
     println!("Logged in");
 
-    client.store_cookie(&(CONFIG_DIR.to_string() + "/cookies.txt"));
+    if let Some(cookie) = client.output_cookie() {
+        save_cookie(cookie);
+    }
 
     // Confirmation
     {
         println!("请确认打印任务信息。按回车键确认上传打印文件；按其他任意键退出。");
-        println!("目前不支持计算黑白彩色混合时各自的页数，建议在驱动中设置打印色彩为“黑白”。\n若以下数据不正确，请取消打印。");
+        println!("{:?}", &job);
         println!("{:?}", Client::job_to_paper_detail(&job));
         println!("Press Enter to continue...");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
     }
 
+    // Remote job id
     let id = client.create_job(&job).await.unwrap();
     println!("Remote jobId: {}", id);
 
@@ -139,7 +157,10 @@ async fn main() {
         .unwrap();
 
     client.set_job(id).await.unwrap();
-    client.store_cookie(&(CONFIG_DIR.to_string() + "/cookies.txt"));
+
+    if let Some(cookie) = client.output_cookie() {
+        save_cookie(cookie);
+    }
 
     // Wait for user input to exit
     println!("Press Enter to exit...");
