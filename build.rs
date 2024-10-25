@@ -5,10 +5,18 @@ use std::path::PathBuf;
 fn main() {
     // Tell cargo to look for shared libraries in the specified directory
     println!("cargo:rustc-link-search=./lib/linux");
-
+    println!("cargo:rustc-link-search=./lib/macos");
+    println!("cargo:rustc-link-search=./lib/windows");
+    
     // Tell cargo to tell rustc to link the system gpcl6
     // shared library.
+    
+    #[cfg(not(target_os = "windows"))]
     println!("cargo:rustc-link-lib=gpcl6");
+
+    
+    #[cfg(target_os = "windows")]
+    println!("cargo:rustc-link-lib=gpcl6dll64");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for

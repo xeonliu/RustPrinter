@@ -9,7 +9,7 @@ use std::{
     ptr,
 };
 
-use super::PCLParser;
+use super::{nompcl::parse_pcl, PCLParser};
 use crate::job::{Color, Job};
 use chrono::Local;
 use image::{DynamicImage, GenericImageView, Pixel};
@@ -35,6 +35,8 @@ enum GhostPCLError {
 }
 
 fn pcl2png(input: &str, temp_dir: &str) -> Result<(), GhostPCLError> {
+    // TODO: Check if input exists.
+
     let mut minst: *mut c_void = ptr::null_mut();
 
     static arg0: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b" \0") };
@@ -69,6 +71,8 @@ fn pcl2png(input: &str, temp_dir: &str) -> Result<(), GhostPCLError> {
                 argv.as_ptr() as *mut *mut i8,
             );
         }
+
+        // WARN: Doesn't seem to work on Windows?
         if gsapi_exit(minst) != 0 {
             // Failed to parse PCL File.
             gsapi_delete_instance(minst);
@@ -127,6 +131,8 @@ impl PCLParser for GhostPCL {
 
         let timestamp = Local::now().format("%Y%m%d%H%M%S").to_string();
 
+        let job = parse_pcl(input).unwrap();
+
         Some(Job {
             id: 0,
             name: timestamp,
@@ -138,10 +144,10 @@ impl PCLParser for GhostPCL {
             color_pages,
             color_map,
             number,
-            copies: todo!(),
-            paper_size: todo!(),
-            direction: todo!(),
-            duplex: todo!(),
+            copies: job.copies,
+            paper_size: job.paper_size,
+            direction: job.direction,
+            duplex: job.duplex,
         })
     }
 
@@ -153,5 +159,6 @@ impl PCLParser for GhostPCL {
 #[test]
 fn test_png() {
     let parser = GhostPCL::new(".").unwrap();
-    parser.get_job("/home/liu/Desktop/RustPrinter/temp_data.bin");
+    // parser.get_job("/home/liu/Desktop/RustPrinter/temp_data.bin");
+    println!("{:?}", parser.get_job(r"C:\upmclient\temp\8.tmp"));
 }
