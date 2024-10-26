@@ -15,7 +15,6 @@ use flate2::Compression;
 use job::Job;
 use parser::ghostpcl::GhostPCL;
 use parser::PCLParser;
-use regex::Regex;
 use server::Server;
 #[cfg(target_os = "windows")]
 use spooler::windows::WindowsSpooler;
@@ -24,11 +23,8 @@ use std::env;
 use std::error::Error;
 use std::fs;
 use std::fs::File;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::{self, Receiver};
-use tokio::time::sleep;
 
 #[derive(Clone, Debug)]
 enum OS {
@@ -156,14 +152,9 @@ async fn prog(tx: Sender<Message>, mut rx2: Receiver<AppMessage>, op_system: OS)
             OS::Others => {
                 let mut port: u16 = 6981;
                 // TODO: Get Message from Client. Which Port to use?
-                if let Some(app_message) = rx2.recv().await {
-                    match app_message {
-                        AppMessage::Port(pt) => {
-                            println!("Set Port to: {}", pt);
-                            port = pt;
-                        }
-                        _ => {}
-                    }
+                if let Some(AppMessage::Port(pt)) = rx2.recv().await {
+                    println!("Set Port to: {}", pt);
+                    port = pt;
                 }
                 println!("{:?}", port);
                 // Waiting for socket sonnection
@@ -218,7 +209,6 @@ async fn prog(tx: Sender<Message>, mut rx2: Receiver<AppMessage>, op_system: OS)
         }
 
         match op_system {
-            
             #[cfg(target_os = "windows")]
             OS::Windows((_, _)) => {
                 // Confirmation
@@ -238,15 +228,10 @@ async fn prog(tx: Sender<Message>, mut rx2: Receiver<AppMessage>, op_system: OS)
                     .expect("Job Send Error");
 
                 // Wait for confirmation?
-                if let Some(app_message) = rx2.recv().await {
-                    match app_message {
-                        AppMessage::Confirm(ok) => {
-                            if !ok {
-                                println!("Cancel Job...");
-                                continue;
-                            }
-                        }
-                        _ => {}
+                if let Some(AppMessage::Confirm(ok)) = rx2.recv().await {
+                    if !ok {
+                        println!("Cancel Job...");
+                        continue;
                     }
                 }
             }
@@ -278,7 +263,6 @@ async fn prog(tx: Sender<Message>, mut rx2: Receiver<AppMessage>, op_system: OS)
         tx.send(Message::Success).await.expect("Sucees not sent");
 
         match op_system {
-
             #[cfg(target_os = "windows")]
             OS::Windows(_) => {
                 // Wait for user input to exit

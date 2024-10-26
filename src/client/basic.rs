@@ -4,7 +4,6 @@ use crate::client::model::{
     CreateJobResponse, GetAuthTokenResponse, StatusCodeResponse, WaitUserInResponse,
 };
 use crate::job::{Color, Duplex, Job};
-use qr2term;
 use reqwest::cookie::CookieStore;
 use reqwest::header::HeaderValue;
 use reqwest::{cookie, multipart, Url};

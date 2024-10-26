@@ -1,12 +1,10 @@
-use eframe::App;
 use std::thread::sleep;
 use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 
 use crate::job::Job;
 use egui::ColorImage;
-use egui::Label;
-use image::{GenericImage, Luma};
+use image::{Luma};
 use qrcode::QrCode;
 use tokio::sync::mpsc::Receiver;
 
