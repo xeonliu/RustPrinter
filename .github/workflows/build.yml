@@ -54,10 +54,15 @@ jobs:
     - name: Install Rust & Cargo
       run: rustup update stable && rustup default stable
     
+    - name: Install Dep
+      run: | 
+        sudo apt-get install libfontconfig1-dev
+        sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
+    
     - name: Build RupmPrinter
       run: |
         cd main
-        cargo build --release --verbose
+        cargo build --release
 
     - uses: actions/upload-artifact@v4
       with:
@@ -104,7 +109,8 @@ jobs:
 
     - name: Copy Lib
       run: |
-        cp ghostpdl/bin/gpcl6.a main/lib/linux/libgpcl6.a
+        mkdir -p main/lib/macos
+        cp ghostpdl/bin/gpcl6.a main/lib/macos/libgpcl6.a
         ls main/lib/macos
     
     - name: Install Rust & Cargo
@@ -113,7 +119,7 @@ jobs:
     - name: Build RupmPrinter
       run: |
         cd main
-        cargo build --release --verbose
+        cargo build --release
 
     - uses: actions/upload-artifact@v4
       with:
@@ -161,7 +167,7 @@ jobs:
       - name: Build RupmPrinter
         run: |
           cd main
-          cargo build --release --verbose
+          cargo build --release
 
       - uses: actions/upload-artifact@v4
         with:
