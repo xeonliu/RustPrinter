@@ -1,11 +1,39 @@
-use std::sync::Arc;
-use std::sync::Mutex;
+use eframe::App;
 use std::thread::sleep;
 use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::Sender;
 
 use crate::job::Job;
+use egui::ColorImage;
+use egui::Label;
+use image::{GenericImage, Luma};
+use qrcode::QrCode;
+use tokio::sync::mpsc::Receiver;
+
+#[derive(Debug)]
+pub enum Message {
+    // Server & Backend
+    WaitSocket,
+    BytesReceived(usize),
+    QRCode(String),
+    CheckJob(Job),
+    Success,
+}
+
+#[derive(Debug)]
+pub enum AppMessage {
+    // App
+    Port(u16),
+    Confirm(bool),
+}
+
+#[derive(Debug, Default)]
+enum State {
+    #[default]
+    Waiting,
+    Logging(String),
+    Confirm(Job),
+}
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
@@ -14,12 +42,17 @@ pub struct PrinterApp {
     pub port: u16,
     #[serde(skip)] // This how you opt-out of serialization of a field
     pub rx: Option<Receiver<Message>>,
+    #[serde(skip)]
+    pub tx2: Option<Sender<AppMessage>>,
+    #[serde(skip)]
+    state: State,
 }
 
 impl PrinterApp {
-    pub fn new(rx: Receiver<Message>) -> Self {
+    pub fn new(rx: Receiver<Message>, tx2: Sender<AppMessage>) -> Self {
         Self {
             rx: Some(rx),
+            tx2: Some(tx2),
             ..Default::default()
         }
     }
@@ -30,43 +63,9 @@ impl Default for PrinterApp {
         Self {
             port: 6981,
             rx: None,
+            tx2: None,
+            state: State::Waiting,
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum Message {
-    WaitSocket,
-    QRCode(String),
-    CheckJob(Job),
-    Success,
-}
-
-pub struct AppWrapper {
-    pub app: Arc<Mutex<PrinterApp>>,
-}
-
-impl AppWrapper {
-    pub fn new(app: Arc<Mutex<PrinterApp>>) -> Self {
-        Self { app }
-    }
-}
-
-impl eframe::App for AppWrapper {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        self.app.lock().unwrap().update(ctx, frame);
-    }
-
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        println!("save");
-        self.app.lock().unwrap().save(storage);
-    }
-
-    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
-        // TODO: Fix it. Exit in a more graceful way.
-        sleep(Duration::from_micros(800));
-        // Signal the other threads to stop
-        std::process::exit(0);
     }
 }
 
@@ -77,14 +76,13 @@ impl eframe::App for PrinterApp {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        sleep(Duration::from_millis(800));
+        std::process::exit(0);
+    }
+
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if let Some(rx) = &mut self.rx {
-            if let Ok(message) = rx.try_recv() {
-                // 处理消息
-                println!("Message {:?}", message);
-            }
-        }
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
@@ -92,17 +90,6 @@ impl eframe::App for PrinterApp {
             // The top panel is often a good place for a menu bar:
 
             egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Quit").clicked() {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                    }
-                    if ui.button("Transparent").clicked() {
-                        // Change the view to invisible.
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
-                    }
-                });
-                ui.add_space(16.0);
-
                 egui::widgets::global_theme_preference_buttons(ui);
             });
         });
@@ -111,10 +98,6 @@ impl eframe::App for PrinterApp {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.heading("Settings");
 
-            // ui.horizontal(|ui| {
-            //     ui.label("Write something: ");
-            //     ui.text_edit_singleline(&mut self.label);
-            // });
             ui.label("Port");
 
             ui.horizontal(|ui| {
@@ -124,16 +107,84 @@ impl eframe::App for PrinterApp {
                 }
             });
 
-            ui.vertical_centered_justified(|ui| {
-                ui.heading("Scan the QR Code");
-            });
+            if let Some(rx) = &mut self.rx {
+                if let Ok(message) = rx.try_recv() {
+                    // 处理消息
+                    println!("Message {:?}", message);
+                    match message {
+                        Message::WaitSocket => self.state = State::Waiting,
+                        Message::QRCode(link) => self.state = State::Logging(link),
+                        Message::CheckJob(job) => self.state = State::Confirm(job),
+                        Message::Success => self.state = State::Waiting,
+                        Message::BytesReceived(num) => {
+                            ctx.request_repaint();
+                            ui.label(format!("Received bytes: {}", num));
+                        }
+                    }
+                }
+            }
 
-            ui.separator();
+            match &self.state {
+                State::Waiting => {
+                    ui.label("Waiting for TCP Connection...");
+                }
+                State::Logging(link) => {
+                    ui.vertical_centered_justified(|ui| {
+                        ui.heading("Scan the QR Code");
+                        // Encode some data into bits.
+                        let code = QrCode::new(link).unwrap();
+                        let image = code.render::<Luma<u8>>().max_dimensions(200, 200).build();
+                        let image_buffer = image.to_vec();
+                        let size = [image.width() as usize, image.height() as usize];
+                        let color_image = ColorImage::from_gray(size, &image_buffer);
+                        // TODO: Only Once Per Image??
+                        let texture =
+                            ui.ctx()
+                                .load_texture("qrcode", color_image, Default::default());
+                        ui.add(egui::Image::from_texture(&texture));
+                    });
+                    ui.separator();
+                    ui.label("Or Copy the link and open it in WeChat");
+                    ui.horizontal(|ui| {
+                        ui.add(egui::TextEdit::singleline(&mut link.as_str())); // Wierd Fix
+                        if ui.button("Copy").clicked() {
+                            ui.output_mut(|o| o.copied_text = link.to_string());
+                            ui.label("Copied");
+                        };
+                    });
+                }
+                State::Confirm(job) => {
+                    ui.vertical_centered_justified(|ui| {
+                        ui.heading("Job Detail");
+                        ui.label(serde_yaml::to_string(&job).unwrap());
+                    });
 
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
-            ));
+                    ui.horizontal_centered(|ui| {
+                        let port = self.port;
+                        if ui.button("Confirm").clicked() {
+                            if let Some(tx) = &self.tx2 {
+                                let tx = tx.clone();
+                                tokio::spawn(async move {
+                                    tx.send(AppMessage::Confirm(true)).await.unwrap();
+                                    tx.send(AppMessage::Port(port)).await.unwrap();
+                                });
+                            }
+                        }
+
+                        if ui.button("Cancel").clicked() {
+                            // Tell Main Program to proceed
+                            if let Some(tx) = &self.tx2 {
+                                let tx = tx.clone();
+                                tokio::spawn(async move {
+                                    tx.send(AppMessage::Confirm(false)).await.unwrap();
+                                    tx.send(AppMessage::Port(port)).await.unwrap();
+                                });
+                            }
+                        }
+                    });
+                }
+                _ => {}
+            }
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 powered_by_egui_and_eframe(ui);
@@ -156,48 +207,3 @@ fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
         ui.label(".");
     });
 }
-
-// #[tokio::main]
-// async fn main() -> eframe::Result {
-//     let native_options = eframe::NativeOptions {
-//         viewport: egui::ViewportBuilder::default()
-//             .with_inner_size([400.0, 300.0])
-//             .with_min_inner_size([300.0, 220.0]),
-//         ..Default::default()
-//     };
-
-//     // Create a global App
-//     let (tx, rx) = mpsc::channel(100);
-//     // tokio::spawn(async move {
-//     //     tx.send(Message::QRCode()).await.unwrap();
-//     // });
-
-//     let app = Arc::new(Mutex::new(PrinterApp::new(rx)));
-//     let app_wrapper = Box::new(AppWrapper::new(Arc::clone(&app)));
-//     let app_clone = Arc::clone(&app);
-
-//     tokio::spawn(async move {
-//         loop {
-//             sleep(Duration::from_secs(1));
-//             let mut app = app_clone.lock().unwrap();
-//             (*app).port += 1;
-//         }
-//     });
-
-//     eframe::run_native(
-//         "RupmPrinter",
-//         native_options,
-//         Box::new(move |cc| {
-//             // Change the app in app_wrapper
-//             if let Some(storage) = cc.storage {
-//                 if let Some(mut app) = eframe::get_value::<PrinterApp>(storage, eframe::APP_KEY) {
-//                     let mut app_wrapper_locked = app_wrapper.app.lock().unwrap();
-//                     app.rx = app_wrapper_locked.rx.take();
-//                     *app_wrapper_locked = app;
-//                 }
-//             }
-
-//             Ok(app_wrapper)
-//         }),
-//     )
-// }

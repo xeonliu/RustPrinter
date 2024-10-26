@@ -3,6 +3,9 @@ use std::io::Write;
 use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::sync::mpsc::Sender;
+
+use crate::app::Message;
 
 pub struct Server {
     listener: TcpListener,
@@ -18,7 +21,7 @@ impl Server {
         })
     }
 
-    pub async fn run(&self) {
+    pub async fn run(&self, tx: Sender<Message>) {
         if let Ok((mut stream, _)) = self.listener.accept().await {
             println!("{:?}", stream);
             let temp_file_path = Path::new(&self.temp_dir).join("temp.bin");
@@ -45,7 +48,14 @@ impl Server {
 
                         bytes_received += n;
                         println!("Received Bytes: {}", bytes_received);
-
+                        // let tx = tx.clone();
+                        // if bytes_received % 1000 == 0 {
+                        //     tokio::spawn(async move {
+                        //         tx.send(Message::BytesReceived(bytes_received))
+                        //             .await
+                        //             .unwrap();
+                        //     });
+                        // }
                         // %-12345X
                         if data.ends_with(b"%-12345X") {
                             break;
@@ -62,12 +72,12 @@ impl Server {
     }
 }
 
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
-    let server = Server::new(7878, ".").await?;
-    // Start Listening & Wait for response
-    println!("Start Server");
-    server.run().await;
-    println!("Processed");
-    Ok(())
-}
+// #[tokio::main]
+// async fn main() -> std::io::Result<()> {
+//     let server = Server::new(7878, ".").await?;
+//     // Start Listening & Wait for response
+//     println!("Start Server");
+//     server.run().await;
+//     println!("Processed");
+//     Ok(())
+// }

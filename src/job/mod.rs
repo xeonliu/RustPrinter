@@ -1,18 +1,20 @@
-#[derive(Debug, Clone, PartialEq, Default)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub enum Color {
     #[default]
     BW,
     COLOR,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub enum Orientation {
     #[default]
     PORTRAIT,
     LANDSCAPE,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub enum Duplex {
     #[default]
     SIMPLEX, // 普通打印
@@ -20,7 +22,7 @@ pub enum Duplex {
     DUPLEX_SHORT_EDGE, // 短边翻转
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub enum Size {
     A3,
     #[default]
@@ -36,7 +38,7 @@ impl From<Size> for i16 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub struct Job {
     pub id: u32,      // Job ID
     pub name: String, // Job Name (File Name)

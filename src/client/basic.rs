@@ -59,7 +59,7 @@ impl Client {
         Ok(res.code == 0)
     }
 
-    async fn get_token(&self) -> Result<String, Box<dyn Error>> {
+    pub async fn get_token(&self) -> Result<String, Box<dyn Error>> {
         let res = self
             .cli
             .get(format!("{}/api/client/Auth/GetAuthToken", self.base_url))
@@ -70,16 +70,8 @@ impl Client {
         Ok(json.sz_token)
     }
 
-    pub(crate) async fn login(&self) -> Result<(), Box<dyn Error>> {
-        let token = self.get_token().await?;
-
-        // Generate QR Code Using the token
-        let login_url = format!("http://pay.unifound.net/uniwx/s.aspx?c=uniauth_1_{}", token);
-
-        println!("在微信中打开该链接以登录： {}", login_url);
-        qr2term::print_qr(login_url).unwrap();
-
-        // spawn another thread for waiting.
+    pub(crate) async fn login(&self, token: String) -> Result<(), Box<dyn Error>> {
+        // spawn another thread waiting.
         let (tx, rx) = oneshot::channel();
 
         // Construct another cli.
