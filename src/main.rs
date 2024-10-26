@@ -37,6 +37,8 @@ impl OS {
     #[cfg(target_os = "windows")]
     fn parse_windows_args(arg_1: &str, arg_2: &str) -> Option<OS> {
         // Check for Windows
+
+        use regex::Regex;
         let jobid_re = Regex::new(r"/JOBID:(\d+)").unwrap();
         let printer_re = Regex::new(r"/PRINTER:(\w+)").unwrap();
 
