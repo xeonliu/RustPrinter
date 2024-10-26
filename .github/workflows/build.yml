@@ -26,7 +26,7 @@ jobs:
     - name: Checkout GhostPDL
       uses: actions/checkout@v4
       with:
-        repository: ArtifexSoftware/ghostpdl.git
+        repository: ArtifexSoftware/ghostpdl
         path: ghostpdl
     
     - name: configure
@@ -79,7 +79,7 @@ jobs:
     - name: Checkout GhostPDL
       uses: actions/checkout@v4
       with:
-        repository: ArtifexSoftware/ghostpdl.git
+        repository: ArtifexSoftware/ghostpdl
         path: ghostpdl
 
     - name: Install Auto conf
@@ -134,7 +134,7 @@ jobs:
       - name: Checkout GhostPDL
         uses: actions/checkout@v4
         with:
-          repository: ArtifexSoftware/ghostpdl.git
+          repository: ArtifexSoftware/ghostpdl
           path: ghostpdl
 
       - uses: ilammy/msvc-dev-cmd@v1
