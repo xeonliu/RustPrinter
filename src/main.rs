@@ -121,7 +121,6 @@ async fn main() -> eframe::Result {
                             (*boxed_app) = app;
                         }
                     }
-                    egui_extras::install_image_loaders(&cc.egui_ctx);
                     Ok(boxed_app)
                 }),
             )
@@ -219,6 +218,8 @@ async fn prog(tx: Sender<Message>, mut rx2: Receiver<AppMessage>, op_system: OS)
         }
 
         match op_system {
+            
+            #[cfg(target_os = "windows")]
             OS::Windows((_, _)) => {
                 // Confirmation
                 {
@@ -277,6 +278,8 @@ async fn prog(tx: Sender<Message>, mut rx2: Receiver<AppMessage>, op_system: OS)
         tx.send(Message::Success).await.expect("Sucees not sent");
 
         match op_system {
+
+            #[cfg(target_os = "windows")]
             OS::Windows(_) => {
                 // Wait for user input to exit
                 println!("Press Enter to exit...");
