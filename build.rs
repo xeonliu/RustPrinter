@@ -4,8 +4,12 @@ use std::path::PathBuf;
 
 fn main() {
     // Tell cargo to look for shared libraries in the specified directory
+    #[cfg(target_os = "linux")]
     println!("cargo:rustc-link-search=./lib/linux");
+
+    #[cfg(target_os = "macos")]
     println!("cargo:rustc-link-search=./lib/macos");
+    
     println!("cargo:rustc-link-search=./lib/windows");
     
     // Tell cargo to tell rustc to link the system gpcl6
