@@ -46,7 +46,7 @@ pub struct Job {
     pub bw_pages: u32,
     pub color_pages: u32,
     pub color_map: String,
-    pub number: u32, // How many pages
+    pub number: u32, // How many Paper
     pub copies: u32,
     pub paper_size: Size,       // A3/A4
     pub direction: Orientation, // P/L

@@ -153,14 +153,9 @@ impl Client {
         let paper_id: i16 = job.paper_size.clone().into();
         // TODO: Identify BW_Pages?
 
-        let paper_num = match job.duplex {
-            Duplex::SIMPLEX => job.number,
-            _ => (job.number + 1) / 2,
-        };
-
         format!(
             "[{{\"dwPaperID\":{},\"dwBWPages\":{},\"dwColorPages\":{},\"dwPaperNum\":{}}}]",
-            paper_id, job.bw_pages, job.color_pages, paper_num,
+            paper_id, job.bw_pages, job.color_pages, job.number,
         )
     }
 
@@ -179,11 +174,7 @@ impl Client {
             dw_copies: job.copies.into(),
             sz_attribe,
             sz_paper_detail,
-            // TODO: Whether each page is colored or not?
-            sz_color_map: match job.color {
-                Color::BW => "0".repeat(job.number as usize),
-                Color::COLOR => "1".repeat(job.number as usize),
-            },
+            sz_color_map: job.color_map.clone(),
         };
 
         let res = self

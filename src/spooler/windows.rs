@@ -170,6 +170,11 @@ impl Spooler for WindowsSpooler {
             Color::COLOR => "1".repeat(number as usize),
         };
 
+        let paper_num = match duplex {
+            Duplex::SIMPLEX => number,
+            _ => (number + 1) / 2,
+        };
+
         Some(Job {
             id: job_info.JobId,
             name,
@@ -177,7 +182,7 @@ impl Spooler for WindowsSpooler {
             bw_pages,
             color_pages,
             color_map,
-            number,
+            number: paper_num,
             paper_size,
             direction,
             duplex,

@@ -12,7 +12,7 @@ use std::{
 use super::{nompcl::parse_pcl, PCLParser};
 use crate::{
     config::ensure_directory,
-    job::{Color, Job},
+    job::{Color, Duplex, Job},
 };
 use chrono::Local;
 use image::{DynamicImage, GenericImageView, Pixel};
@@ -101,11 +101,13 @@ impl GhostPCL {
 
 impl PCLParser for GhostPCL {
     fn get_job(&self, input: &str) -> Option<Job> {
-        // TODO: Get Timestamp as name
+        let job = parse_pcl(input).unwrap();
+
         if let Err(e) = pcl2png(input, &self.temp_dir) {
             eprintln!("{:?}", e);
             return None;
         }
+
         // Grep temp images in temp dir
         let mut images = vec![];
         for entry in std::fs::read_dir(&self.temp_dir).unwrap() {
@@ -117,8 +119,10 @@ impl PCLParser for GhostPCL {
                 std::fs::remove_file(&path).expect("Failed to delete image file");
             }
         }
+
         // Count Page Number
         let number: u32 = images.len().try_into().unwrap();
+
         // Check their color
         let color_map: Vec<bool> = images.iter().map(is_color).collect();
         let color_pages: u32 = color_map.iter().filter(|&&c| c).count().try_into().unwrap();
@@ -131,9 +135,14 @@ impl PCLParser for GhostPCL {
             .collect();
         let bw_pages = number - color_pages;
 
+        // Get Timestamp as name
         let timestamp = Local::now().format("%Y%m%d%H%M%S").to_string();
 
-        let job = parse_pcl(input).unwrap();
+        // Count The Number of Paper (This is used as )
+        let paper_num = match job.duplex {
+            Duplex::SIMPLEX => number,
+            _ => (number + 1) / 2,
+        };
 
         Some(Job {
             id: 0,
@@ -145,7 +154,7 @@ impl PCLParser for GhostPCL {
             bw_pages,
             color_pages,
             color_map,
-            number,
+            number: paper_num,
             copies: job.copies,
             paper_size: job.paper_size,
             direction: job.direction,

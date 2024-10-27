@@ -185,31 +185,6 @@ async fn prog(tx: Sender<Message>, mut rx2: Receiver<AppMessage>, op_system: OS)
 
         gzip_compress(&pcl_file_path, &compressed_pcl_file_path).expect("Compress Failed.");
 
-        let client = Client::new();
-
-        if let Some(cookie) = load_cookie() {
-            client.load_cookie(&cookie);
-        }
-
-        if !client.check_login().await.unwrap() {
-            println!("Not Logged in");
-            let token = client.get_token().await.unwrap();
-            let login_url = format!("http://pay.unifound.net/uniwx/s.aspx?c=uniauth_1_{}", token);
-            tx.send(Message::QRCode(login_url.clone()))
-                .await
-                .expect("QRCode not sent");
-            println!("在微信中打开该链接以登录： {}", login_url);
-            println!("或者扫描二维码： {}", login_url);
-            qr2term::print_qr(login_url).unwrap();
-            client.login(token).await.unwrap();
-        }
-
-        println!("Logged in");
-
-        if let Some(cookie) = client.output_cookie() {
-            save_cookie(cookie);
-        }
-
         match op_system {
             #[cfg(target_os = "windows")]
             OS::Windows((_, _)) => {
@@ -237,6 +212,31 @@ async fn prog(tx: Sender<Message>, mut rx2: Receiver<AppMessage>, op_system: OS)
                     }
                 }
             }
+        }
+
+        let client = Client::new();
+
+        if let Some(cookie) = load_cookie() {
+            client.load_cookie(&cookie);
+        }
+
+        if !client.check_login().await.unwrap() {
+            println!("Not Logged in");
+            let token = client.get_token().await.unwrap();
+            let login_url = format!("http://pay.unifound.net/uniwx/s.aspx?c=uniauth_1_{}", token);
+            tx.send(Message::QRCode(login_url.clone()))
+                .await
+                .expect("QRCode not sent");
+            println!("在微信中打开该链接以登录： {}", login_url);
+            println!("或者扫描二维码： {}", login_url);
+            qr2term::print_qr(login_url).unwrap();
+            client.login(token).await.unwrap();
+        }
+
+        println!("Logged in");
+
+        if let Some(cookie) = client.output_cookie() {
+            save_cookie(cookie);
         }
 
         // Remote job id
