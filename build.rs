@@ -6,7 +6,7 @@ fn main() {
     // Tell cargo to look for shared libraries in the specified directory
     #[cfg(target_os = "linux")]
     println!("cargo:rustc-link-search=./lib/linux");
-
+    
     #[cfg(target_os = "macos")]
     println!("cargo:rustc-link-search=./lib/macos");
     
@@ -17,7 +17,9 @@ fn main() {
     
     #[cfg(not(target_os = "windows"))]
     println!("cargo:rustc-link-lib=gpcl6");
-
+    
+    #[cfg(target_os = "linux")]
+    println!("cargo:rustc-link-lib=fontconfig");
     
     #[cfg(target_os = "windows")]
     println!("cargo:rustc-link-lib=gpcl6dll64");
