@@ -9,6 +9,25 @@ It works as a Sockets Server, a PCL Interpreter and a Frontend Client on `Window
 
 On `Windows` it can also work as a **patch** of the original client.
 
+```mermaid
+flowchart LR
+    subgraph Driver["Printer Driver"]
+        A[PCL Data]
+    end
+
+    subgraph RupmPrinter["RupmPrinter"]
+        B[Parse PCL File Using GhostPDL]
+        C[Generate Preview]
+        D[Send File]
+    end
+
+    subgraph Backend["Backend Service"]
+        E[Receive & Process File]
+    end
+
+    A -- "TCP 6981" --> B --> C --> D -- "HTTP" --> E
+```
+
 # Usage
 ## Windows
 
@@ -67,5 +86,6 @@ lpadmin -p RupmPrinter -E -v socket://127.0.0.1:6981 -m drv:///sample.drv/laserj
 AGPL 3.0
 
 # Build
+
 
 Checkout GitHub Action Files
